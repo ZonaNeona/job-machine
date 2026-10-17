@@ -29,7 +29,11 @@ class Lead(Base):
     scoring_reason = Column(Text, nullable=True)
     generated_offer = Column(Text, nullable=True)
     custom_notes = Column(Text, nullable=True)
-    
+
+    # Personal workflow layer
+    priority = Column(String, default="normal")          # high | normal | low
+    next_action_at = Column(DateTime, nullable=True)     # follow-up / reminder date
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     sent_at = Column(DateTime, nullable=True)
@@ -46,6 +50,23 @@ class KnowledgeBaseItem(Base):
     tags = Column(String, default="")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LeadEvent(Base):
+    """Append-only journal of everything that happens with a lead.
+
+    Backwards compatible addition: a brand new table, no changes to `leads`.
+    """
+    __tablename__ = "lead_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lead_id = Column(Integer, index=True, nullable=False)
+    kind = Column(String, nullable=False, index=True)    # created | status_changed | offer_generated | offer_saved | dispatched | field_updated
+    from_status = Column(String, nullable=True)
+    to_status = Column(String, nullable=True)
+    message = Column(String, nullable=True)
+    payload = Column(Text, nullable=True)                # JSON string with extra context
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class SystemSetting(Base):

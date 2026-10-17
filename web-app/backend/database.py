@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from models import Base
 
@@ -22,8 +22,31 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def _migrate_lead_columns():
+    """Additive, backwards-compatible migration for SQLite.
+
+    `create_all` never alters existing tables, so new nullable columns are added
+    manually. Existing rows receive safe defaults and nothing is dropped.
+    """
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
+    with engine.connect() as conn:
+        rows = conn.execute(text("PRAGMA table_info(leads)")).fetchall()
+        if not rows:
+            return
+
+        existing = {row[1] for row in rows}
+        if "priority" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN priority VARCHAR DEFAULT 'normal'"))
+        if "next_action_at" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN next_action_at DATETIME"))
+        conn.commit()
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _migrate_lead_columns()
 
 def get_db():
     db = SessionLocal()

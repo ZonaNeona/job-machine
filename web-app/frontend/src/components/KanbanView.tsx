@@ -135,8 +135,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (onOpenOutreach) onOpenOutreach(lead);
-                              else onSelectLead(lead);
+                              onSelectLead(lead);
                             }}
                             className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] flex items-center gap-1 shadow-xs shadow-indigo-600/20 transition-all cursor-pointer"
                             title="Быстрый отклик с проверкой (Dry-Run)"

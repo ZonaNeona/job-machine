@@ -1,157 +1,152 @@
-import { Lead, SystemStats, KnowledgeBaseItem, SystemSettings } from './types';
+﻿
+import {
+  KnowledgeBaseItem,
+  Lead,
+  LeadEvent,
+  OfferAngle,
+  OfferLength,
+  ScraperKey,
+  ScraperStatus,
+  SystemSettings,
+  WorkspaceOverview,
+} from './types';
 
 const API_BASE = '/api';
 
-export const api = {
-  async getStats(): Promise<SystemStats> {
-    const res = await fetch(`${API_BASE}/stats`);
-    if (!res.ok) throw new Error('Ошибка получения статистики');
-    return res.json();
-  },
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, init);
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = typeof body?.detail === 'string' ? body.detail : JSON.stringify(body?.detail ?? body);
+    } catch {
+      detail = await res.text().catch(() => '');
+    }
+    throw new Error(detail || `Запрос ${path} завершился с кодом ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
 
-  async getLeads(filters?: { status?: string; source?: string; search?: string; min_score?: number }): Promise<Lead[]> {
+const json = (body: unknown): RequestInit => ({
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
+export interface LeadPatch {
+  title?: string;
+  company?: string | null;
+  status?: Lead['status'];
+  match_score?: number;
+  scoring_reason?: string | null;
+  generated_offer?: string | null;
+  custom_notes?: string | null;
+  tags?: string | null;
+  contact_info?: string | null;
+  url?: string | null;
+  salary_raw?: string | null;
+  location?: string | null;
+  job_type?: string | null;
+  description?: string;
+  priority?: string;
+  next_action_at?: string | null;
+}
+
+export interface ManualLeadPayload {
+  title: string;
+  company?: string;
+  source?: string;
+  url?: string;
+  salary_raw?: string;
+  contact_info?: string;
+  description?: string;
+  tags?: string;
+  match_score?: number;
+  priority?: string;
+  next_action_at?: string | null;
+}
+
+export interface GenerateOfferOptions {
+  angle?: OfferAngle;
+  length?: OfferLength;
+  instructions?: string;
+  model?: string;
+  variation?: number;
+}
+
+const SCRAPER_PATHS: Record<ScraperKey, string> = {
+  hh: '/scrapers/hh',
+  tg: '/scrapers/tg',
+  freelance: '/scrapers/freelance',
+  avito: '/scrapers/avito',
+};
+
+export const api = {
+  getOverview: () => request<WorkspaceOverview>('/workspace/overview'),
+
+  getLeads: (filters?: { status?: string; source?: string; search?: string; min_score?: number; limit?: number }) => {
     const params = new URLSearchParams();
     if (filters?.status && filters.status !== 'all') params.append('status', filters.status);
     if (filters?.source && filters.source !== 'all') params.append('source', filters.source);
     if (filters?.search) params.append('search', filters.search);
-    if (filters?.min_score !== undefined) params.append('min_score', filters.min_score.toString());
-
-    const url = `${API_BASE}/leads${params.toString() ? '?' + params.toString() : ''}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Ошибка получения лидов');
-    return res.json();
+    if (filters?.min_score !== undefined) params.append('min_score', String(filters.min_score));
+    if (filters?.limit) params.append('limit', String(filters.limit));
+    const query = params.toString();
+    return request<Lead[]>(`/leads${query ? `?${query}` : ''}`);
   },
 
-  async getLead(id: number): Promise<Lead> {
-    const res = await fetch(`${API_BASE}/leads/${id}`);
-    if (!res.ok) throw new Error('Ошибка получения данных лида');
-    return res.json();
-  },
+  getLead: (id: number) => request<Lead>(`/leads/${id}`),
 
-  async updateLead(id: number, data: Partial<Lead>): Promise<Lead> {
-    const res = await fetch(`${API_BASE}/leads/${id}`, {
+  createLead: (payload: ManualLeadPayload) => request<Lead>('/leads', json(payload)),
+
+  updateLead: (id: number, patch: LeadPatch) =>
+    request<Lead>(`/leads/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Ошибка обновления лида');
-    return res.json();
-  },
+      body: JSON.stringify(patch),
+    }),
 
-  async generateOffer(leadId: number, model: string = 'anthropic/claude-3.5-sonnet', customInstructions?: string): Promise<{ offer: string }> {
-    const res = await fetch(`${API_BASE}/leads/${leadId}/generate-offer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, custom_instructions: customInstructions }),
-    });
-    if (!res.ok) throw new Error('Ошибка генерации оффера');
-    return res.json();
-  },
+  getLeadEvents: (id: number) => request<LeadEvent[]>(`/leads/${id}/events`),
 
-  async sendOffer(leadId: number, offerText: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/leads/${leadId}/send-offer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ offer_text: offerText }),
-    });
-    if (!res.ok) throw new Error('Ошибка отправки оффера');
-    return res.json();
-  },
+  generateOffer: (id: number, options: GenerateOfferOptions = {}) =>
+    request<{ status: string; offer: string; lead_id: number; fallback?: boolean }>(
+      `/leads/${id}/generate-offer`,
+      json({
+        model: options.model ?? 'anthropic/claude-3.5-sonnet',
+        custom_instructions: options.instructions || null,
+        angle: options.angle ?? 'pain',
+        length: options.length ?? 'short',
+        variation: options.variation ?? Math.floor(Math.random() * 997),
+      }),
+    ),
 
-  async dispatchOffer(leadId: number, data: { offer_text: string; confirmed_by_human: boolean; channel?: string }): Promise<any> {
-    const res = await fetch(`${API_BASE}/leads/${leadId}/dispatch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Ошибка отправки отклика');
-    }
-    return res.json();
-  },
+  dispatchOffer: (
+    id: number,
+    payload: { offer_text: string; channel?: string; follow_up_days?: number; confirmed_by_human: boolean },
+  ) => request<Record<string, unknown>>(`/leads/${id}/dispatch`, json({ ...payload, dry_run: true })),
 
-  async getKnowledgeBase(): Promise<KnowledgeBaseItem[]> {
-    const res = await fetch(`${API_BASE}/knowledge-base`);
-    if (!res.ok) throw new Error('Ошибка получения базы знаний');
-    return res.json();
-  },
+  getKnowledgeBase: () => request<KnowledgeBaseItem[]>('/knowledge-base'),
 
-  async createKnowledgeBaseItem(item: Omit<KnowledgeBaseItem, 'id' | 'created_at'>): Promise<KnowledgeBaseItem> {
-    const res = await fetch(`${API_BASE}/knowledge-base`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item),
-    });
-    if (!res.ok) throw new Error('Ошибка сохранения кейса');
-    return res.json();
-  },
+  createKnowledgeBaseItem: (item: Omit<KnowledgeBaseItem, 'id' | 'created_at'>) =>
+    request<KnowledgeBaseItem>('/knowledge-base', json(item)),
 
-  async deleteKnowledgeBaseItem(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/knowledge-base/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Ошибка удаления кейса');
-  },
+  deleteKnowledgeBaseItem: (id: number) =>
+    request<{ status: string }>(`/knowledge-base/${id}`, { method: 'DELETE' }),
 
-  async getSettings(): Promise<SystemSettings> {
-    const res = await fetch(`${API_BASE}/settings`);
-    if (!res.ok) throw new Error('Ошибка получения настроек');
-    return res.json();
-  },
+  getSettings: () => request<SystemSettings>('/settings'),
 
-  async updateSettings(settings: Partial<SystemSettings>): Promise<void> {
-    const res = await fetch(`${API_BASE}/settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    });
-    if (!res.ok) throw new Error('Ошибка обновления настроек');
-  },
+  updateSettings: (settings: Partial<SystemSettings>) =>
+    request<{ status: string }>('/settings', json(settings)),
 
-  async triggerHHScraper(): Promise<{ status: string; message: string }> {
-    const res = await fetch(`${API_BASE}/scrapers/hh/trigger`, { method: 'POST' });
-    if (!res.ok) throw new Error('Ошибка запуска сбора hh.ru');
-    return res.json();
-  },
+  triggerScraper: (key: ScraperKey) =>
+    request<{ status: string; message: string }>(`${SCRAPER_PATHS[key]}/trigger`, { method: 'POST' }),
 
-  async getHHScraperStatus(): Promise<{ is_running: boolean; last_run: string | null; last_result: any }> {
-    const res = await fetch(`${API_BASE}/scrapers/hh/status`);
-    if (!res.ok) throw new Error('Ошибка получения статуса скрапера');
-    return res.json();
-  },
+  getScraperStatus: (key: ScraperKey) => request<ScraperStatus>(`${SCRAPER_PATHS[key]}/status`),
 
-  async triggerTGScraper(): Promise<{ status: string; message: string }> {
-    const res = await fetch(`${API_BASE}/scrapers/tg/trigger`, { method: 'POST' });
-    if (!res.ok) throw new Error('Ошибка запуска сбора Telegram');
-    return res.json();
-  },
-
-  async getTGScraperStatus(): Promise<{ is_running: boolean; last_run: string | null; last_result: any }> {
-    const res = await fetch(`${API_BASE}/scrapers/tg/status`);
-    if (!res.ok) throw new Error('Ошибка получения статуса Telegram скрапера');
-    return res.json();
-  },
-
-  async triggerFreelanceScraper(): Promise<{ status: string; message: string }> {
-    const res = await fetch(`${API_BASE}/scrapers/freelance/trigger`, { method: 'POST' });
-    if (!res.ok) throw new Error('Ошибка запуска сбора с фриланс-площадок');
-    return res.json();
-  },
-
-  async getFreelanceScraperStatus(): Promise<{ is_running: boolean; last_run: string | null; last_result: any }> {
-    const res = await fetch(`${API_BASE}/scrapers/freelance/status`);
-    if (!res.ok) throw new Error('Ошибка получения статуса фриланс скрапера');
-    return res.json();
-  },
-
-  async triggerAvitoScraper(): Promise<{ status: string; message: string }> {
-    const res = await fetch(`${API_BASE}/scrapers/avito/trigger`, { method: 'POST' });
-    if (!res.ok) throw new Error('Ошибка запуска сбора с Авито Работы');
-    return res.json();
-  },
-
-  async getAvitoScraperStatus(): Promise<{ is_running: boolean; last_run: string | null; last_result: any }> {
-    const res = await fetch(`${API_BASE}/scrapers/avito/status`);
-    if (!res.ok) throw new Error('Ошибка получения статуса скрапера Авито');
-    return res.json();
-  }
+  testAlert: () => request<Record<string, unknown>>('/alerts/test', { method: 'POST' }),
 };
+
+export { SCRAPER_PATHS };
+
