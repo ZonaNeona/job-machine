@@ -76,3 +76,48 @@ class SystemSetting(Base):
     key = Column(String, unique=True, index=True, nullable=False)
     value = Column(Text, nullable=False)
     description = Column(String, nullable=True)
+
+
+class AccountPlatform(Base):
+    """Per-platform account-parser state (hh chats, later Habр/FL/…)."""
+    __tablename__ = "account_platforms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    platform = Column(String, unique=True, index=True, nullable=False)  # hh.ru, habr, …
+    label = Column(String, nullable=True)
+    enabled = Column(Boolean, default=True)
+    interval_minutes = Column(Integer, default=60)
+    session_ok = Column(Boolean, default=False)
+    profile_ready = Column(Boolean, default=False)
+    last_run_at = Column(DateTime, nullable=True)
+    last_status = Column(String, nullable=True)  # ok | auth_required | error | idle
+    last_error = Column(Text, nullable=True)
+    last_stats_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AccountChat(Base):
+    """Synced personal chats / threads from a platform account."""
+    __tablename__ = "account_chats"
+
+    id = Column(Integer, primary_key=True, index=True)
+    platform = Column(String, index=True, nullable=False)  # hh.ru
+    external_chat_id = Column(String, index=True, nullable=False)  # HH chat id (≠ vacancy id)
+    chat_url = Column(String, nullable=True)
+    vacancy_external_id = Column(String, index=True, nullable=True)  # hh_138270661
+    vacancy_url = Column(String, nullable=True)
+    title = Column(String, nullable=True)
+    counterpart = Column(String, nullable=True)  # company / recruiter
+    time_label = Column(String, nullable=True)
+    last_message_preview = Column(Text, nullable=True)
+    fingerprint = Column(String, nullable=True)
+    has_reply = Column(Boolean, default=False)
+    unread = Column(Boolean, default=False)
+    message_count = Column(Integer, default=0)
+    messages_json = Column(Text, nullable=True)
+    lead_id = Column(Integer, index=True, nullable=True)
+    reply_detected_at = Column(DateTime, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

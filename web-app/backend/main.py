@@ -11,13 +11,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import engine, get_db, init_db
-from models import Lead, KnowledgeBaseItem, SystemSetting, LeadEvent
+from models import Lead, KnowledgeBaseItem, SystemSetting, LeadEvent, AccountPlatform, AccountChat
 from schemas import (
     LeadResponse, LeadCreate, LeadUpdate, ManualLeadCreate,
     KnowledgeBaseItemResponse, KnowledgeBaseItemCreate,
     SystemStats, GenerateOfferRequest, SendOfferRequest, DispatchOfferRequest,
     LeadEventResponse, LeadEventFeed, LeadBrief, SourceHealth,
     OverviewTotals, OverviewToday, OverviewMrr, OverviewAttention, WorkspaceOverview,
+    AccountPlatformUpdate, AccountPlatformResponse, AccountChatResponse,
 )
 from seed_data import seed_database
 import ai_service
@@ -537,6 +538,10 @@ def get_settings(db: Session = Depends(get_db)):
     result["OPENROUTER_CONFIGURED"] = bool(os.getenv("OPENROUTER_API_KEY") and "your_openrouter" not in os.getenv("OPENROUTER_API_KEY"))
     result["HH_CONFIGURED"] = bool(os.getenv("HH_ACCESS_TOKEN"))
     result["TG_CONFIGURED"] = bool(os.getenv("TG_API_ID"))
+    # Account monitor session (Playwright profile), independent from HH_ACCESS_TOKEN
+    from pathlib import Path
+    hh_profile = Path(__file__).resolve().parent.parent.parent / "account-parsing" / "hh" / "browser_profile"
+    result["HH_ACCOUNT_PROFILE_READY"] = hh_profile.exists() and any(hh_profile.iterdir())
     return result
 
 @app.post("/api/settings")
@@ -711,6 +716,224 @@ def get_avito_scraper_status():
     return avito_scraper_state
 
 
+# --- Account monitors (personal cabinets: HH chats, later Habр / FL / …) ---
+account_sync_state = {
+    "hh.ru": {"is_running": False, "last_run": None, "last_result": None},
+}
+
+HH_ACCOUNT_SETTING_MAP = {
+    "base_url": "HH_ACCOUNT_BASE_URL",
+    "open_chat_details": "HH_ACCOUNT_OPEN_CHAT_DETAILS",
+    "max_chats_to_open": "HH_ACCOUNT_MAX_CHATS_TO_OPEN",
+    "alert_on_reply": "HH_ACCOUNT_ALERT_ON_REPLY",
+    "enabled": "HH_ACCOUNT_SYNC_ENABLED",
+    "interval_minutes": "HH_ACCOUNT_SYNC_INTERVAL_MIN",
+}
 
 
+def _settings_map(db: Session) -> dict:
+    return {s.key: s.value for s in db.query(SystemSetting).all()}
+
+
+def _upsert_setting(db: Session, key: str, value: str) -> None:
+    row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+    if row:
+        row.value = value
+    else:
+        db.add(SystemSetting(key=key, value=value))
+
+
+def _platform_response(db: Session, platform: AccountPlatform) -> AccountPlatformResponse:
+    from pathlib import Path
+    sm = _settings_map(db)
+    stats = None
+    if platform.last_stats_json:
+        try:
+            stats = json.loads(platform.last_stats_json)
+        except Exception:
+            stats = None
+
+    profile_ready = platform.profile_ready
+    if platform.platform == "hh.ru":
+        profile_dir = Path(__file__).resolve().parent.parent.parent / "account-parsing" / "hh" / "browser_profile"
+        profile_ready = profile_dir.exists() and any(profile_dir.iterdir())
+
+    running = bool(account_sync_state.get(platform.platform, {}).get("is_running"))
+    login_hint = None
+    if platform.platform == "hh.ru":
+        login_hint = "py account-parsing/hh/auth_session.py"
+
+    return AccountPlatformResponse(
+        platform=platform.platform,
+        label=platform.label,
+        enabled=platform.enabled if platform.platform != "hh.ru" else sm.get("HH_ACCOUNT_SYNC_ENABLED", "true").lower() in {"1", "true", "yes"},
+        interval_minutes=int(sm.get("HH_ACCOUNT_SYNC_INTERVAL_MIN", platform.interval_minutes or 60)),
+        session_ok=bool(platform.session_ok),
+        profile_ready=bool(profile_ready),
+        last_run_at=platform.last_run_at,
+        last_status=platform.last_status,
+        last_error=platform.last_error,
+        last_stats=stats,
+        base_url=sm.get("HH_ACCOUNT_BASE_URL", "https://hh.ru") if platform.platform == "hh.ru" else None,
+        open_chat_details=sm.get("HH_ACCOUNT_OPEN_CHAT_DETAILS", "true").lower() in {"1", "true", "yes"} if platform.platform == "hh.ru" else None,
+        max_chats_to_open=int(sm.get("HH_ACCOUNT_MAX_CHATS_TO_OPEN", "12")) if platform.platform == "hh.ru" else None,
+        alert_on_reply=sm.get("HH_ACCOUNT_ALERT_ON_REPLY", "true").lower() in {"1", "true", "yes"} if platform.platform == "hh.ru" else None,
+        login_hint=login_hint,
+        is_running=running,
+    )
+
+
+@app.get("/api/accounts", response_model=List[AccountPlatformResponse])
+def list_account_platforms(db: Session = Depends(get_db)):
+    rows = db.query(AccountPlatform).order_by(AccountPlatform.platform.asc()).all()
+    if not rows:
+        # Soft ensure — init_db should have seeded, but keep API resilient
+        db.add(AccountPlatform(platform="hh.ru", label="hh.ru · чаты откликов", enabled=True, interval_minutes=60, last_status="idle"))
+        db.commit()
+        rows = db.query(AccountPlatform).all()
+    return [_platform_response(db, row) for row in rows]
+
+
+@app.get("/api/accounts/{platform}", response_model=AccountPlatformResponse)
+def get_account_platform(platform: str, db: Session = Depends(get_db)):
+    row = db.query(AccountPlatform).filter(AccountPlatform.platform == platform).first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Платформа {platform} не найдена")
+    return _platform_response(db, row)
+
+
+@app.patch("/api/accounts/{platform}", response_model=AccountPlatformResponse)
+def update_account_platform(platform: str, body: AccountPlatformUpdate, db: Session = Depends(get_db)):
+    row = db.query(AccountPlatform).filter(AccountPlatform.platform == platform).first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Платформа {platform} не найдена")
+
+    if body.enabled is not None:
+        row.enabled = body.enabled
+        if platform == "hh.ru":
+            _upsert_setting(db, "HH_ACCOUNT_SYNC_ENABLED", "true" if body.enabled else "false")
+    if body.interval_minutes is not None:
+        mins = max(15, min(24 * 60, int(body.interval_minutes)))
+        row.interval_minutes = mins
+        if platform == "hh.ru":
+            _upsert_setting(db, "HH_ACCOUNT_SYNC_INTERVAL_MIN", str(mins))
+    if platform == "hh.ru":
+        if body.base_url is not None:
+            _upsert_setting(db, "HH_ACCOUNT_BASE_URL", body.base_url.rstrip("/") or "https://hh.ru")
+        if body.open_chat_details is not None:
+            _upsert_setting(db, "HH_ACCOUNT_OPEN_CHAT_DETAILS", "true" if body.open_chat_details else "false")
+        if body.max_chats_to_open is not None:
+            _upsert_setting(db, "HH_ACCOUNT_MAX_CHATS_TO_OPEN", str(max(0, min(40, int(body.max_chats_to_open)))))
+        if body.alert_on_reply is not None:
+            _upsert_setting(db, "HH_ACCOUNT_ALERT_ON_REPLY", "true" if body.alert_on_reply else "false")
+
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(row)
+    return _platform_response(db, row)
+
+
+@app.get("/api/accounts/{platform}/chats", response_model=List[AccountChatResponse])
+def list_account_chats(
+    platform: str,
+    unread_only: bool = Query(False),
+    has_reply: Optional[bool] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    q = db.query(AccountChat).filter(AccountChat.platform == platform)
+    if unread_only:
+        q = q.filter(AccountChat.unread == True)  # noqa: E712
+    if has_reply is not None:
+        q = q.filter(AccountChat.has_reply == has_reply)
+    rows = q.order_by(AccountChat.updated_at.desc()).limit(limit).all()
+    return rows
+
+
+@app.post("/api/accounts/{platform}/chats/{chat_id}/read")
+def mark_account_chat_read(platform: str, chat_id: str, db: Session = Depends(get_db)):
+    row = (
+        db.query(AccountChat)
+        .filter(AccountChat.platform == platform, AccountChat.external_chat_id == chat_id)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Чат не найден")
+    row.unread = False
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/accounts/{platform}/sync")
+async def trigger_account_sync(platform: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    row = db.query(AccountPlatform).filter(AccountPlatform.platform == platform).first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Платформа {platform} не найдена")
+
+    state = account_sync_state.setdefault(platform, {"is_running": False, "last_run": None, "last_result": None})
+    if state["is_running"]:
+        return {"status": "already_running", "message": f"Синхронизация {platform} уже идёт"}
+
+    if platform != "hh.ru":
+        raise HTTPException(status_code=400, detail="Пока поддерживается только hh.ru — остальные площадки по порядку")
+
+    async def run_hh_account_task():
+        state["is_running"] = True
+        try:
+            from pathlib import Path
+            import sys
+            hh_account_dir = Path(__file__).resolve().parent.parent.parent / "account-parsing" / "hh"
+            if str(hh_account_dir) not in sys.path:
+                sys.path.insert(0, str(hh_account_dir))
+            from pipeline import run_hh_account_sync
+            res = await run_hh_account_sync(headless=True, force=True)
+            state["last_result"] = res
+            state["last_run"] = datetime.utcnow().isoformat()
+        except Exception as e:
+            print(f"[!] Error in HH account sync: {e}")
+            state["last_result"] = {"error": str(e)}
+        finally:
+            state["is_running"] = False
+
+    background_tasks.add_task(run_hh_account_task)
+    return {
+        "status": "started",
+        "message": "Синхронизация чатов hh.ru запущена. Если сессии нет — выполните py account-parsing/hh/auth_session.py",
+    }
+
+
+@app.post("/api/accounts/{platform}/import-sample")
+async def import_account_sample(platform: str, db: Session = Depends(get_db)):
+    row = db.query(AccountPlatform).filter(AccountPlatform.platform == platform).first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Платформа {platform} не найдена")
+    if platform != "hh.ru":
+        raise HTTPException(status_code=400, detail="Сэмплы пока доступны только для hh.ru")
+
+    from pathlib import Path
+    import sys
+    hh_account_dir = Path(__file__).resolve().parent.parent.parent / "account-parsing" / "hh"
+    if str(hh_account_dir) not in sys.path:
+        sys.path.insert(0, str(hh_account_dir))
+    from pipeline import run_hh_sample_import
+
+    res = await run_hh_sample_import(alerts_on=False)
+    return {"status": "ok", "stats": res}
+
+
+@app.get("/api/accounts/{platform}/status")
+def get_account_sync_status(platform: str, db: Session = Depends(get_db)):
+    row = db.query(AccountPlatform).filter(AccountPlatform.platform == platform).first()
+    state = account_sync_state.get(platform, {"is_running": False, "last_run": None, "last_result": None})
+    payload = {
+        "is_running": state.get("is_running", False),
+        "last_run": state.get("last_run") or (row.last_run_at.isoformat() if row and row.last_run_at else None),
+        "last_result": state.get("last_result"),
+    }
+    if row:
+        payload["session_ok"] = row.session_ok
+        payload["last_status"] = row.last_status
+        payload["last_error"] = row.last_error
+    return payload
 

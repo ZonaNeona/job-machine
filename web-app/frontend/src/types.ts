@@ -144,7 +144,62 @@ export interface SystemSettings {
   OPENROUTER_CONFIGURED?: boolean;
   HH_CONFIGURED?: boolean;
   TG_CONFIGURED?: boolean;
+  HH_ACCOUNT_PROFILE_READY?: boolean;
+  HH_ACCOUNT_SYNC_ENABLED?: string;
+  HH_ACCOUNT_SYNC_INTERVAL_MIN?: string;
+  HH_ACCOUNT_BASE_URL?: string;
+  HH_ACCOUNT_OPEN_CHAT_DETAILS?: string;
+  HH_ACCOUNT_MAX_CHATS_TO_OPEN?: string;
+  HH_ACCOUNT_ALERT_ON_REPLY?: string;
   [key: string]: unknown;
+}
+
+export interface AccountPlatform {
+  platform: string;
+  label?: string | null;
+  enabled: boolean;
+  interval_minutes: number;
+  session_ok: boolean;
+  profile_ready: boolean;
+  last_run_at?: string | null;
+  last_status?: string | null;
+  last_error?: string | null;
+  last_stats?: Record<string, unknown> | null;
+  base_url?: string | null;
+  open_chat_details?: boolean | null;
+  max_chats_to_open?: number | null;
+  alert_on_reply?: boolean | null;
+  login_hint?: string | null;
+  is_running?: boolean;
+}
+
+export interface AccountChat {
+  id: number;
+  platform: string;
+  external_chat_id: string;
+  chat_url?: string | null;
+  vacancy_external_id?: string | null;
+  vacancy_url?: string | null;
+  title?: string | null;
+  counterpart?: string | null;
+  time_label?: string | null;
+  last_message_preview?: string | null;
+  has_reply: boolean;
+  unread: boolean;
+  message_count: number;
+  lead_id?: number | null;
+  reply_detected_at?: string | null;
+  last_synced_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface AccountPlatformPatch {
+  enabled?: boolean;
+  interval_minutes?: number;
+  base_url?: string;
+  open_chat_details?: boolean;
+  max_chats_to_open?: number;
+  alert_on_reply?: boolean;
 }
 
 export interface ScraperStatus {

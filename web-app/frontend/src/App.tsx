@@ -1,4 +1,4 @@
-﻿
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus, Sparkles, Zap } from 'lucide-react';
 import { api } from './api';
@@ -18,6 +18,7 @@ import { FunnelView } from './workspace/views/FunnelView';
 import { StudioView } from './workspace/views/StudioView';
 import { KnowledgeView } from './workspace/views/KnowledgeView';
 import { SettingsView } from './workspace/views/SettingsView';
+import { AccountsView } from './workspace/views/AccountsView';
 
 const VIEW_TITLE: Record<WorkspaceView, string> = {
   today: 'Сегодня',
@@ -25,10 +26,11 @@ const VIEW_TITLE: Record<WorkspaceView, string> = {
   funnel: 'Воронка',
   studio: 'Студия офферов',
   knowledge: 'База знаний',
+  accounts: 'Аккаунты',
   settings: 'Источники',
 };
 
-const VIEWS: WorkspaceView[] = ['today', 'stream', 'funnel', 'studio', 'knowledge', 'settings'];
+const VIEWS: WorkspaceView[] = ['today', 'stream', 'funnel', 'studio', 'knowledge', 'accounts', 'settings'];
 
 function viewFromHash(): WorkspaceView {
   const raw = window.location.hash.replace(/^#\/?/, '');
@@ -55,6 +57,10 @@ const VIEW_HEAD: Record<WorkspaceView, { title: string; sub: string }> = {
   knowledge: {
     title: 'База знаний',
     sub: 'Кейсы и факты, на которые опираются офферы. Всё проверяемое и твоё.',
+  },
+  accounts: {
+    title: 'Аккаунты площадок',
+    sub: 'Сессии личных кабинетов, синк чатов и быстрая обратная связь по ответам.',
   },
   settings: {
     title: 'Источники и подключения',
@@ -231,6 +237,7 @@ export default function App() {
     funnel: leads.length,
     studio: leads.filter((lead) => lead.status === 'new' || lead.status === 'ai_scored').length,
     knowledge: ws.kb.length,
+    accounts: ws.accountChats.filter((chat) => chat.unread || chat.has_reply).length || undefined,
     settings: undefined,
   };
 
@@ -364,6 +371,22 @@ export default function App() {
               busy={Boolean(ws.busy['kb'])}
               onAdd={ws.addKbItem}
               onRemove={ws.removeKbItem}
+            />
+          )}
+
+          {view === 'accounts' && (
+            <AccountsView
+              platforms={ws.accounts}
+              chats={ws.accountChats}
+              selectedPlatform={ws.selectedAccount}
+              busy={ws.busy}
+              onSelectPlatform={ws.selectAccount}
+              onSync={ws.syncAccount}
+              onImportSample={ws.importAccountSample}
+              onSave={ws.saveAccount}
+              onOpenLead={openLead}
+              onMarkRead={ws.markChatRead}
+              onRefresh={() => ws.refresh(true)}
             />
           )}
 

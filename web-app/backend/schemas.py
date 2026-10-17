@@ -228,3 +228,59 @@ class DispatchOfferRequest(BaseModel):
     follow_up_days: Optional[int] = 2
 
 
+class AccountPlatformUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    interval_minutes: Optional[int] = None
+    # HH-specific settings mirrored into SystemSetting
+    base_url: Optional[str] = None
+    open_chat_details: Optional[bool] = None
+    max_chats_to_open: Optional[int] = None
+    alert_on_reply: Optional[bool] = None
+
+
+class AccountPlatformResponse(BaseModel):
+    platform: str
+    label: Optional[str] = None
+    enabled: bool = True
+    interval_minutes: int = 60
+    session_ok: bool = False
+    profile_ready: bool = False
+    last_run_at: Optional[datetime] = None
+    last_status: Optional[str] = None
+    last_error: Optional[str] = None
+    last_stats: Optional[dict] = None
+    # Live config from SystemSetting (hh)
+    base_url: Optional[str] = None
+    open_chat_details: Optional[bool] = None
+    max_chats_to_open: Optional[int] = None
+    alert_on_reply: Optional[bool] = None
+    login_hint: Optional[str] = None
+    is_running: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class AccountChatResponse(BaseModel):
+    id: int
+    platform: str
+    external_chat_id: str
+    chat_url: Optional[str] = None
+    vacancy_external_id: Optional[str] = None
+    vacancy_url: Optional[str] = None
+    title: Optional[str] = None
+    counterpart: Optional[str] = None
+    time_label: Optional[str] = None
+    last_message_preview: Optional[str] = None
+    has_reply: bool = False
+    unread: bool = False
+    message_count: int = 0
+    lead_id: Optional[int] = None
+    reply_detected_at: Optional[datetime] = None
+    last_synced_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+

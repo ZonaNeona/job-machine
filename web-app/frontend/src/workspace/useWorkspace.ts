@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, GenerateOfferOptions, LeadPatch, ManualLeadPayload } from '../api';
 import {
+  AccountChat,
+  AccountPlatform,
+  AccountPlatformPatch,
   KnowledgeBaseItem,
   Lead,
   ScraperKey,
@@ -35,6 +38,9 @@ export function useWorkspace() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [scrapers, setScrapers] = useState<Partial<Record<ScraperKey, ScraperStatus>>>({});
+  const [accounts, setAccounts] = useState<AccountPlatform[]>([]);
+  const [accountChats, setAccountChats] = useState<AccountChat[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState('hh.ru');
   const [lastSync, setLastSync] = useState<string | null>(null);
   const toastId = useRef(0);
 
@@ -54,18 +60,28 @@ export function useWorkspace() {
     if (quiet) setRefreshing(true);
     else setLoading(true);
     try {
-      const [nextLeads, nextOverview, nextKb, nextSettings] = await Promise.all([
+      const [nextLeads, nextOverview, nextKb, nextSettings, nextAccounts] = await Promise.all([
         api.getLeads(),
         api.getOverview(),
         api.getKnowledgeBase().catch(() => []),
         api.getSettings().catch(() => null),
+        api.getAccounts().catch(() => [] as AccountPlatform[]),
       ]);
       setLeads(nextLeads);
       setOverview(nextOverview);
       setKb(nextKb);
       setSettings(nextSettings);
+      setAccounts(nextAccounts);
       setLastSync(new Date().toISOString());
       setError('');
+
+      const platform = selectedAccount || nextAccounts[0]?.platform || 'hh.ru';
+      try {
+        const chats = await api.getAccountChats(platform, { limit: 150 });
+        setAccountChats(chats);
+      } catch {
+        /* platform may be empty on first boot */
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
       setError(message);
@@ -73,6 +89,111 @@ export function useWorkspace() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  }, [notify, selectedAccount]);
+
+  const setBusyKey = useCallback((key: string, value: boolean) => {
+    setBusy((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const loadAccountChats = useCallback(async (platform: string) => {
+    try {
+      const chats = await api.getAccountChats(platform, { limit: 150 });
+      setAccountChats(chats);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось загрузить чаты';
+      notify(message, 'error');
+    }
+  }, [notify]);
+
+  const selectAccount = useCallback((platform: string) => {
+    setSelectedAccount(platform);
+    void loadAccountChats(platform);
+  }, [loadAccountChats]);
+
+  const saveAccount = useCallback(async (platform: string, patch: AccountPlatformPatch) => {
+    setBusyKey(`account-save-${platform}`, true);
+    try {
+      const updated = await api.updateAccount(platform, patch);
+      setAccounts((prev) => prev.map((item) => (item.platform === platform ? updated : item)));
+      notify('Настройки аккаунта сохранены');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось сохранить';
+      notify(message, 'error');
+    } finally {
+      setBusyKey(`account-save-${platform}`, false);
+    }
+  }, [notify, setBusyKey]);
+
+  const pollAccountSync = useCallback((platform: string) => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await api.getAccountSyncStatus(platform);
+        setAccounts((prev) => prev.map((item) => (
+          item.platform === platform
+            ? { ...item, is_running: status.is_running, session_ok: status.session_ok ?? item.session_ok }
+            : item
+        )));
+        if (!status.is_running) {
+          window.clearInterval(timer);
+          const result = (status.last_result || {}) as Record<string, unknown>;
+          const seen = result.chats_seen ?? result.chats_upserted;
+          const replies = result.new_replies;
+          notify(
+            `${platform}: синк готов`
+            + (seen !== undefined ? `, чатов ${seen}` : '')
+            + (replies ? `, новых ответов ${replies}` : ''),
+          );
+          void refresh(true);
+          void loadAccountChats(platform);
+        } else if (Date.now() - startedAt > 240000) {
+          window.clearInterval(timer);
+        }
+      } catch {
+        window.clearInterval(timer);
+      }
+    }, 3000);
+  }, [loadAccountChats, notify, refresh]);
+
+  const syncAccount = useCallback(async (platform: string) => {
+    setBusyKey(`account-${platform}`, true);
+    try {
+      const result = await api.triggerAccountSync(platform);
+      notify(result.message || `${platform}: синхронизация запущена`);
+      pollAccountSync(platform);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось запустить синк';
+      notify(message, 'error');
+    } finally {
+      setBusyKey(`account-${platform}`, false);
+    }
+  }, [notify, pollAccountSync, setBusyKey]);
+
+  const importAccountSample = useCallback(async (platform: string) => {
+    setBusyKey(`account-sample-${platform}`, true);
+    try {
+      await api.importAccountSample(platform);
+      notify(`Сэмпл ${platform} успешно загружен`);
+      void refresh(true);
+      void loadAccountChats(platform);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось загрузить сэмпл';
+      notify(message, 'error');
+    } finally {
+      setBusyKey(`account-sample-${platform}`, false);
+    }
+  }, [loadAccountChats, notify, refresh, setBusyKey]);
+
+  const markChatRead = useCallback(async (platform: string, chatId: string) => {
+    try {
+      await api.markAccountChatRead(platform, chatId);
+      setAccountChats((prev) => prev.map((chat) => (
+        chat.external_chat_id === chatId ? { ...chat, unread: false } : chat
+      )));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось отметить';
+      notify(message, 'error');
     }
   }, [notify]);
 
@@ -86,10 +207,6 @@ export function useWorkspace() {
         .then((status) => setScrapers((prev) => ({ ...prev, [key]: status })))
         .catch(() => undefined);
     });
-  }, []);
-
-  const setBusyKey = useCallback((key: string, value: boolean) => {
-    setBusy((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const patchLead = useCallback(async (lead: Lead, changes: LeadPatch, options?: { silent?: boolean; message?: string }) => {
@@ -273,6 +390,9 @@ export function useWorkspace() {
     toasts,
     busy,
     scrapers,
+    accounts,
+    accountChats,
+    selectedAccount,
     lastSync,
     notify,
     dismissToast,
@@ -287,5 +407,11 @@ export function useWorkspace() {
     saveSettings,
     runScraper,
     runAllScrapers,
+    selectAccount,
+    saveAccount,
+    syncAccount,
+    importAccountSample,
+    markChatRead,
+    loadAccountChats,
   };
 }

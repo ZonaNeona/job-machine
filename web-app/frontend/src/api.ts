@@ -1,5 +1,8 @@
-﻿
+
 import {
+  AccountChat,
+  AccountPlatform,
+  AccountPlatformPatch,
   KnowledgeBaseItem,
   Lead,
   LeadEvent,
@@ -146,6 +149,46 @@ export const api = {
   getScraperStatus: (key: ScraperKey) => request<ScraperStatus>(`${SCRAPER_PATHS[key]}/status`),
 
   testAlert: () => request<Record<string, unknown>>('/alerts/test', { method: 'POST' }),
+
+  getAccounts: () => request<AccountPlatform[]>('/accounts'),
+
+  getAccount: (platform: string) => request<AccountPlatform>(`/accounts/${encodeURIComponent(platform)}`),
+
+  updateAccount: (platform: string, patch: AccountPlatformPatch) =>
+    request<AccountPlatform>(`/accounts/${encodeURIComponent(platform)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }),
+
+  getAccountChats: (platform: string, opts?: { unread_only?: boolean; has_reply?: boolean; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.unread_only) params.append('unread_only', 'true');
+    if (opts?.has_reply !== undefined) params.append('has_reply', String(opts.has_reply));
+    if (opts?.limit) params.append('limit', String(opts.limit));
+    const q = params.toString();
+    return request<AccountChat[]>(`/accounts/${encodeURIComponent(platform)}/chats${q ? `?${q}` : ''}`);
+  },
+
+  triggerAccountSync: (platform: string) =>
+    request<{ status: string; message: string }>(`/accounts/${encodeURIComponent(platform)}/sync`, { method: 'POST' }),
+
+  getAccountSyncStatus: (platform: string) =>
+    request<ScraperStatus & { session_ok?: boolean; last_status?: string; last_error?: string | null }>(
+      `/accounts/${encodeURIComponent(platform)}/status`,
+    ),
+
+  importAccountSample: (platform: string) =>
+    request<{ status: string; stats: Record<string, unknown> }>(
+      `/accounts/${encodeURIComponent(platform)}/import-sample`,
+      { method: 'POST' },
+    ),
+
+  markAccountChatRead: (platform: string, chatId: string) =>
+    request<{ status: string }>(
+      `/accounts/${encodeURIComponent(platform)}/chats/${encodeURIComponent(chatId)}/read`,
+      { method: 'POST' },
+    ),
 };
 
 export { SCRAPER_PATHS };

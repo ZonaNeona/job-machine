@@ -50,8 +50,11 @@ htmlcov/
 
 # 4. Профили браузера Playwright (Cookies, Captcha-сессии)
 scrapers/avito/browser_profile/
+account-parsing/hh/browser_profile/
+account-parsing/**/browser_profile/
 browser_profile/
 .playwright/
+scratch/
 
 # 5. Telegram Telethon Sessions (Сессионные ключи авторизации)
 *.session
@@ -73,3 +76,7 @@ Desktop.ini
 .vscode/
 *.sublime-project
 *.sublime-workspace
+
+# 9. Сырые дампы страниц
+parsing/
+*_files/

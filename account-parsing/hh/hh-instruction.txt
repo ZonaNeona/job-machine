@@ -1,0 +1,25 @@
+заходим на страницу
+https://kaluga.hh.ru/chat
+примеры страниц в папке
+
+пример ссылки конкретного чата
+https://kaluga.hh.ru/chat/5697264260
+
+---
+JOB-MACHINE (мониторинг аккаунта)
+
+1) Один раз войти и сохранить cookies:
+   py account-parsing/hh/auth_session.py
+
+2) Разовый синк чатов в БД:
+   py account-parsing/hh/runner.py --once
+
+3) Проверка парсера на сохранённых HTML:
+   py account-parsing/hh/runner.py --parse-sample
+
+4) Из HQ: раздел «Аккаунты» → hh.ru → «Синхронизировать сейчас»
+   API: POST /api/accounts/hh.ru/sync
+
+Важно: id чата (/chat/5697264260) НЕ равен id вакансии.
+Vacancy id берём из шапки открытого чата (data-qa=chatik-header-vacancy-link → /vacancy/…).
+

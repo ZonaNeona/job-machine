@@ -95,6 +95,17 @@
 
 ---
 
+- [x] **TASK-24**: Мониторинг личного кабинета и чатов **hh.ru** (`account-parsing/hh/`):
+  - Интерактивный Playwright-мастер 1-разовой авторизации `auth_session.py` (сохранение cookies в `browser_profile/`).
+  - Парсер DOM и сохраненных HTML-дампов `html_parser.py`: парсинг списка `/chat` и открытых диалогов `/chat/{chat_id}`, очистка названий от системных кнопок ("Перейти"), извлечение `vacancy_id` из `data-qa="chatik-header-vacancy-link"`.
+  - Фоновый асинхронный скрапер `chat_scraper.py` со stealth-эмуляцией человека и защитой от детекта.
+  - Пайплайн базы данных `pipeline.py`: сохранение истории в `AccountChat`, автоматическая привязка к лидам (`Lead`), перевод в статус `replied`, логирование в `lead_events` и Telegram-пуши при ответах.
+  - Оффлайн и онлайн запуск через CLI `runner.py`: флаги `--import-sample`, `--parse-sample`, `--check-session`, `--once`.
+  - Полноценная интеграция в Command Center: новый раздел сайдбара **«Аккаунты»**, эндпоинты FastAPI `/api/accounts/*`, индикация сессии, кнопки «Синхронизировать» и «Импорт сэмпла».
+  - Проверено: успешно импортированы 9 чатов из дампов пользователя, связан лид #145 (ZAVOZ), зафиксирован статус `replied` и аудит-события.
+
+---
+
 ## 📋 TO DO (Следующие шаги)
 - [ ] **TASK-11**: Ввод пользователем ключей в `.env` по [`USER_ACTION_GUIDE.md`](file:///f:/JOB-MACHINE/USER_ACTION_GUIDE.md) (OpenRouter, Telegram API, Telegram Alert Bot).
 - [ ] **TASK-19**: Подготовка рекламных объявлений и автоответчика для **Авито Услуги** (Inbound SMB B2B поток).

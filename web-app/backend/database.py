@@ -44,9 +44,37 @@ def _migrate_lead_columns():
         conn.commit()
 
 
+def _seed_account_platforms():
+    """Ensure default account-monitor platforms exist (idempotent)."""
+    from models import AccountPlatform, SystemSetting
+
+    with SessionLocal() as db:
+        if not db.query(AccountPlatform).filter(AccountPlatform.platform == "hh.ru").first():
+            db.add(AccountPlatform(
+                platform="hh.ru",
+                label="hh.ru · чаты откликов",
+                enabled=True,
+                interval_minutes=60,
+                last_status="idle",
+            ))
+        defaults = [
+            ("HH_ACCOUNT_SYNC_ENABLED", "true", "Мониторинг чатов hh.ru"),
+            ("HH_ACCOUNT_SYNC_INTERVAL_MIN", "60", "Интервал синка hh-аккаунта (мин)"),
+            ("HH_ACCOUNT_BASE_URL", "https://hh.ru", "Базовый URL hh.ru"),
+            ("HH_ACCOUNT_OPEN_CHAT_DETAILS", "true", "Открывать чаты за vacancy_id"),
+            ("HH_ACCOUNT_MAX_CHATS_TO_OPEN", "12", "Лимит открытий чатов за проход"),
+            ("HH_ACCOUNT_ALERT_ON_REPLY", "true", "Telegram при ответе работодателя"),
+        ]
+        for key, value, desc in defaults:
+            if not db.query(SystemSetting).filter(SystemSetting.key == key).first():
+                db.add(SystemSetting(key=key, value=value, description=desc))
+        db.commit()
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     _migrate_lead_columns()
+    _seed_account_platforms()
 
 def get_db():
     db = SessionLocal()
