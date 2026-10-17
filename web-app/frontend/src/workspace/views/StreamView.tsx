@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, Inbox, PenLine, Search, SlidersHorizontal } from 'lucide-react';
-import { Lead, LeadStatus } from '../../types';
-import { SOURCES, STAGE_MAP, STAGES, formatSalary, plural, relativeTime } from '../lib';
-import { DueLabel, EmptyState, ScoreRing, SourceBadge } from '../components/ui';
+import { Lead, LeadCategory, LeadStatus } from '../../types';
+import { CATEGORIES, SOURCES, STAGE_MAP, STAGES, formatSalary, plural, relativeTime } from '../lib';
+import { CategoryBadge, DealTypeBadge, DueLabel, EmptyState, ScoreRing, SourceBadge, UrgencyTrafficLight } from '../components/ui';
 
 interface StreamViewProps {
   leads: Lead[];
@@ -13,22 +13,50 @@ interface StreamViewProps {
 }
 
 type SortMode = 'score' | 'newest' | 'updated';
+type StreamSlice = 'all' | 'hot' | 'ai' | 'quick' | 'retainer' | 'bots' | 'web' | 'cms' | 'replied';
 
 export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatus }: StreamViewProps) {
+  const [slice, setSlice] = useState<StreamSlice>('all');
   const [search, setSearch] = useState('');
   const [source, setSource] = useState('all');
   const [stage, setStage] = useState('all');
+  const [category, setCategory] = useState('all');
   const [minScore, setMinScore] = useState('0');
   const [sort, setSort] = useState<SortMode>('score');
   const [cursor, setCursor] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
 
+  // Live slice counters
+  const sliceCounts = useMemo(() => {
+    return {
+      all: leads.length,
+      hot: leads.filter((l) => l.urgency === 'hot').length,
+      ai: leads.filter((l) => l.category === 'ai').length,
+      quick: leads.filter((l) => l.deal_type === 'quick').length,
+      retainer: leads.filter((l) => l.deal_type === 'retainer').length,
+      bots: leads.filter((l) => l.category === 'bots_parsers').length,
+      web: leads.filter((l) => l.category === 'web').length,
+      cms: leads.filter((l) => l.category === 'cms').length,
+      replied: leads.filter((l) => l.status === 'replied').length,
+    };
+  }, [leads]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     const scoreFloor = Number(minScore);
     return leads
       .filter((lead) => {
+        // Fast slices filter
+        if (slice === 'hot' && lead.urgency !== 'hot') return false;
+        if (slice === 'ai' && lead.category !== 'ai') return false;
+        if (slice === 'bots' && lead.category !== 'bots_parsers') return false;
+        if (slice === 'web' && lead.category !== 'web') return false;
+        if (slice === 'cms' && lead.category !== 'cms') return false;
+        if (slice === 'quick' && lead.deal_type !== 'quick') return false;
+        if (slice === 'retainer' && lead.deal_type !== 'retainer') return false;
+        if (slice === 'replied' && lead.status !== 'replied') return false;
+
         if (query) {
           const haystack = [lead.title, lead.company, lead.tags, lead.description, lead.contact_info]
             .filter(Boolean).join(' ').toLowerCase();
@@ -36,6 +64,7 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
         }
         if (source !== 'all' && lead.source !== source) return false;
         if (stage !== 'all' && lead.status !== stage) return false;
+        if (category !== 'all' && lead.category !== category) return false;
         if (lead.match_score < scoreFloor) return false;
         return true;
       })
@@ -45,9 +74,9 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
         return (b.match_score || 0) - (a.match_score || 0)
           || (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0);
       });
-  }, [leads, search, source, stage, minScore, sort]);
+  }, [leads, slice, search, source, stage, category, minScore, sort]);
 
-  useEffect(() => { setCursor(0); }, [search, source, stage, minScore, sort]);
+  useEffect(() => { setCursor(0); }, [slice, search, source, stage, category, minScore, sort]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -84,14 +113,94 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
   }, [cursor]);
 
   const resetFilters = () => {
+    setSlice('all');
     setSearch('');
     setSource('all');
     setStage('all');
+    setCategory('all');
     setMinScore('0');
   };
 
   return (
     <div className="fade-in">
+      {/* Stream Slices Bar */}
+      <div className="stream-slices" role="tablist" aria-label="Срезы потока">
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'all' ? 'active' : ''}`}
+          onClick={() => setSlice('all')}
+        >
+          <span>Все лиды</span>
+          <span className="slice-count">{sliceCounts.all}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'hot' ? 'active' : ''}`}
+          onClick={() => setSlice('hot')}
+        >
+          <span>🔥 Горящие (&lt;2ч)</span>
+          <span className="slice-count">{sliceCounts.hot}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'ai' ? 'active' : ''}`}
+          onClick={() => setSlice('ai')}
+        >
+          <span>🟣 AI &amp; LLM</span>
+          <span className="slice-count">{sliceCounts.ai}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'retainer' ? 'active' : ''}`}
+          onClick={() => setSlice('retainer')}
+        >
+          <span>💎 Ретейнеры (80к+)</span>
+          <span className="slice-count">{sliceCounts.retainer}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'quick' ? 'active' : ''}`}
+          onClick={() => setSlice('quick')}
+        >
+          <span>⚡ Быстрый чек</span>
+          <span className="slice-count">{sliceCounts.quick}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'bots' ? 'active' : ''}`}
+          onClick={() => setSlice('bots')}
+        >
+          <span>🔵 Боты &amp; Парсеры</span>
+          <span className="slice-count">{sliceCounts.bots}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'web' ? 'active' : ''}`}
+          onClick={() => setSlice('web')}
+        >
+          <span>🟢 Сайты / Web</span>
+          <span className="slice-count">{sliceCounts.web}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'cms' ? 'active' : ''}`}
+          onClick={() => setSlice('cms')}
+        >
+          <span>🟠 CMS &amp; CRM</span>
+          <span className="slice-count">{sliceCounts.cms}</span>
+        </button>
+        {sliceCounts.replied > 0 && (
+          <button
+            type="button"
+            className={`slice-pill ${slice === 'replied' ? 'active' : ''}`}
+            onClick={() => setSlice('replied')}
+          >
+            <span>💬 Есть ответ</span>
+            <span className="slice-count">{sliceCounts.replied}</span>
+          </button>
+        )}
+      </div>
+
       <div className="stream-toolbar">
         <div className="input-wrap">
           <Search size={14} />
@@ -103,6 +212,11 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
+
+        <select className="select" value={category} onChange={(event) => setCategory(event.target.value)} title="Стрим / Направление">
+          <option value="all">Все стримы</option>
+          {CATEGORIES.map((item) => <option key={item.id} value={item.id}>{item.emoji} {item.label}</option>)}
+        </select>
 
         <select className="select" value={source} onChange={(event) => setSource(event.target.value)} title="Источник">
           <option value="all">Все источники</option>
@@ -171,9 +285,20 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
                     <td><ScoreRing score={lead.match_score} /></td>
                     <td>
                       <div className="cell-title">
-                        <span className="row-title">{lead.title}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <UrgencyTrafficLight urgency={lead.urgency} />
+                          <span className="row-title">{lead.title}</span>
+                        </div>
                         <span className="row-sub">
                           <span className="truncate">{lead.company || 'Без компании'}</span>
+                          <span className="sep">·</span>
+                          <CategoryBadge category={lead.category} />
+                          {lead.deal_type && (
+                            <>
+                              <span className="sep">·</span>
+                              <DealTypeBadge dealType={lead.deal_type} />
+                            </>
+                          )}
                           {lead.priority === 'high' && (
                             <><span className="sep">·</span><span style={{ color: '#bf3f3f', fontWeight: 600 }}>высокий</span></>
                           )}

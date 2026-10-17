@@ -5,9 +5,9 @@ import {
 import { api, LeadPatch } from '../../api';
 import { Lead, LeadEvent, LeadStatus } from '../../types';
 import {
-  SOURCE_MAP, STAGES, STAGE_MAP, contactTarget, formatDateTime, formatSalary, parseDate, parseTags, relativeTime,
+  CATEGORIES, DEAL_TYPES, SOURCE_MAP, STAGES, STAGE_MAP, contactTarget, formatDateTime, formatSalary, parseDate, parseTags, relativeTime,
 } from '../lib';
-import { DueLabel, PriorityBadge, ScoreRing, SourceBadge } from '../components/ui';
+import { CategoryBadge, DealTypeBadge, DueLabel, PriorityBadge, ScoreRing, SourceBadge, UrgencyTrafficLight } from '../components/ui';
 
 interface LeadDrawerProps {
   lead: Lead;
@@ -44,6 +44,8 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
     contact_info: lead.contact_info ?? '',
     salary_raw: lead.salary_raw ?? '',
     priority: lead.priority ?? 'normal',
+    category: lead.category ?? 'ai',
+    deal_type: lead.deal_type ?? 'retainer',
     next_action_at: toDateInput(lead.next_action_at),
     custom_notes: lead.custom_notes ?? '',
   });
@@ -54,10 +56,12 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
       contact_info: lead.contact_info ?? '',
       salary_raw: lead.salary_raw ?? '',
       priority: lead.priority ?? 'normal',
+      category: lead.category ?? 'ai',
+      deal_type: lead.deal_type ?? 'retainer',
       next_action_at: toDateInput(lead.next_action_at),
       custom_notes: lead.custom_notes ?? '',
     });
-  }, [lead.id, lead.contact_info, lead.salary_raw, lead.priority, lead.next_action_at, lead.custom_notes]);
+  }, [lead.id, lead.contact_info, lead.salary_raw, lead.priority, lead.category, lead.deal_type, lead.next_action_at, lead.custom_notes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +86,8 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
     form.contact_info !== (lead.contact_info ?? '')
     || form.salary_raw !== (lead.salary_raw ?? '')
     || form.priority !== (lead.priority ?? 'normal')
+    || form.category !== (lead.category ?? 'ai')
+    || form.deal_type !== (lead.deal_type ?? 'retainer')
     || form.next_action_at !== toDateInput(lead.next_action_at)
     || form.custom_notes !== (lead.custom_notes ?? '')
   ), [form, lead]);
@@ -93,6 +99,8 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
         contact_info: form.contact_info || null,
         salary_raw: form.salary_raw || null,
         priority: form.priority,
+        category: form.category,
+        deal_type: form.deal_type,
         next_action_at: form.next_action_at ? new Date(`${form.next_action_at}T09:00:00`).toISOString() : null,
         custom_notes: form.custom_notes || null,
       });
@@ -142,6 +150,9 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
           </div>
 
           <div className="drawer-badges">
+            <UrgencyTrafficLight urgency={lead.urgency} />
+            <CategoryBadge category={lead.category} full />
+            <DealTypeBadge dealType={lead.deal_type} />
             <span className={`badge badge-stage tone-${STAGE_MAP[lead.status]?.tone ?? 'gray'}`}>
               {STAGE_MAP[lead.status]?.label ?? lead.status}
             </span>
@@ -223,6 +234,30 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
                       <option value="high">Высокий</option>
                       <option value="normal">Обычный</option>
                       <option value="low">Низкий</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Стрим (направление)</label>
+                    <select
+                      className="select sm"
+                      value={form.category}
+                      onChange={(event) => setForm({ ...form, category: event.target.value })}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Тип чека</label>
+                    <select
+                      className="select sm"
+                      value={form.deal_type}
+                      onChange={(event) => setForm({ ...form, deal_type: event.target.value })}
+                    >
+                      {DEAL_TYPES.map((d) => (
+                        <option key={d.id} value={d.id}>{d.badge}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="field">

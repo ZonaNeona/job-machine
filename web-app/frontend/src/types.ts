@@ -21,6 +21,9 @@ export type LeadSource =
 export type Priority = 'high' | 'normal' | 'low';
 export type OfferAngle = 'pain' | 'speed' | 'money' | 'architecture' | 'prototype';
 export type OfferLength = 'short' | 'medium';
+export type LeadCategory = 'ai' | 'bots_parsers' | 'web' | 'cms';
+export type DealType = 'quick' | 'retainer' | 'project';
+export type Urgency = 'hot' | 'warm' | 'normal';
 
 export interface Lead {
   id: number;
@@ -44,6 +47,9 @@ export interface Lead {
   custom_notes?: string | null;
   priority?: Priority | string | null;
   next_action_at?: string | null;
+  category?: LeadCategory | string | null;
+  deal_type?: DealType | string | null;
+  urgency?: Urgency | string | null;
   created_at: string;
   updated_at: string;
   sent_at?: string | null;
@@ -64,6 +70,9 @@ export interface LeadBrief {
   sent_at?: string | null;
   next_action_at?: string | null;
   priority?: string | null;
+  category?: LeadCategory | string | null;
+  deal_type?: DealType | string | null;
+  urgency?: Urgency | string | null;
 }
 
 export interface LeadEvent {

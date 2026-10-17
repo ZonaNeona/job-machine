@@ -31,6 +31,18 @@ DEFAULT_SEARCH_PRESETS = [
         "query": "AI Engineer",
         "schedule": "remote",
         "description": "AI/ML инженеры в стартапы и продуктовые команды"
+    },
+    {
+        "name": "Web & Fullstack (Python / React)",
+        "query": "Python React",
+        "schedule": "remote",
+        "description": "Веб-разработка, сервисы и интерфейсы"
+    },
+    {
+        "name": "Парсинг данных & Скрапинг",
+        "query": "Python парсинг",
+        "schedule": "remote",
+        "description": "Сбор данных, скраперы и пайплайны"
     }
 ]
 

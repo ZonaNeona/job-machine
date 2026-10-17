@@ -41,7 +41,25 @@ def _migrate_lead_columns():
             conn.execute(text("ALTER TABLE leads ADD COLUMN priority VARCHAR DEFAULT 'normal'"))
         if "next_action_at" not in existing:
             conn.execute(text("ALTER TABLE leads ADD COLUMN next_action_at DATETIME"))
+        if "category" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN category VARCHAR DEFAULT 'ai'"))
+        if "deal_type" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN deal_type VARCHAR DEFAULT 'retainer'"))
+        if "urgency" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN urgency VARCHAR DEFAULT 'normal'"))
         conn.commit()
+
+    try:
+        from classifier import backfill_all_leads
+        with SessionLocal() as db:
+            from models import Lead
+            unclassified = db.query(Lead).filter(
+                (Lead.category == None) | (Lead.deal_type == None) | (Lead.deal_type == "")
+            ).first()
+            if unclassified:
+                backfill_all_leads(db)
+    except Exception as exc:
+        print(f"[!] Classifier backfill notice: {exc}")
 
 
 def _seed_account_platforms():

@@ -24,6 +24,7 @@ if sys.platform == "win32":
 import httpx
 from database import SessionLocal
 from models import Lead, KnowledgeBaseItem
+from classifier import classify_lead_full
 import ai_service
 import alert_service
 from scrapers.freelance.config import HABR_SEARCH_PRESETS
@@ -90,6 +91,13 @@ async def run_habr_pipeline() -> Dict[str, Any]:
                     )
                     match_score = score_res.get("match_score", 65)
 
+                    cl = classify_lead_full(
+                        title=item["title"],
+                        description=desc,
+                        tags=item.get("skills", "Python, Habr"),
+                        salary_raw=item.get("salary") or "По договоренности",
+                    )
+
                     new_lead = Lead(
                         external_id=ext_id,
                         title=item["title"],
@@ -101,7 +109,10 @@ async def run_habr_pipeline() -> Dict[str, Any]:
                         tags=item.get("skills", "Python, Habr"),
                         match_score=match_score,
                         scoring_reason=score_res.get("explanation", "Релевантная вакансия с Хабр Карьеры"),
-                        status="ai_scored" if match_score >= 70 else "new"
+                        status="ai_scored" if match_score >= 70 else "new",
+                        category=cl["category"],
+                        deal_type=cl["deal_type"],
+                        urgency=cl["urgency"],
                     )
 
                     db.add(new_lead)
@@ -164,6 +175,13 @@ async def run_fl_pipeline() -> Dict[str, Any]:
                 )
                 match_score = score_res.get("match_score", 70)
 
+                cl = classify_lead_full(
+                    title=task["title"],
+                    description=task["description"],
+                    tags="Фриланс, FL.ru, Заказ",
+                    salary_raw=task.get("salary") or "По договоренности",
+                )
+
                 new_lead = Lead(
                     external_id=ext_id,
                     title=task["title"],
@@ -175,7 +193,10 @@ async def run_fl_pipeline() -> Dict[str, Any]:
                     tags="Фриланс, FL.ru, Заказ",
                     match_score=match_score,
                     scoring_reason=score_res.get("explanation", "Прямой проект с биржи FL.ru"),
-                    status="ai_scored" if match_score >= 70 else "new"
+                    status="ai_scored" if match_score >= 70 else "new",
+                    category=cl["category"],
+                    deal_type=cl["deal_type"],
+                    urgency=cl["urgency"],
                 )
 
                 db.add(new_lead)
@@ -252,6 +273,13 @@ async def run_kwork_pipeline() -> Dict[str, Any]:
                 )
                 match_score = score_res.get("match_score", 70)
 
+                cl = classify_lead_full(
+                    title=p["title"],
+                    description=p["description"],
+                    tags=p.get("tags", "Kwork, IT"),
+                    salary_raw=p.get("salary") or "По договоренности",
+                )
+
                 new_lead = Lead(
                     external_id=ext_id,
                     title=p["title"],
@@ -263,7 +291,10 @@ async def run_kwork_pipeline() -> Dict[str, Any]:
                     tags=p.get("tags", "Kwork, IT"),
                     match_score=match_score,
                     scoring_reason=score_res.get("explanation", "Прямой проект с биржи Kwork"),
-                    status="ai_scored" if match_score >= 70 else "new"
+                    status="ai_scored" if match_score >= 70 else "new",
+                    category=cl["category"],
+                    deal_type=cl["deal_type"],
+                    urgency=cl["urgency"],
                 )
 
                 db.add(new_lead)

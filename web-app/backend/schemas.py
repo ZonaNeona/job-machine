@@ -28,6 +28,9 @@ class LeadBase(BaseModel):
     custom_notes: Optional[str] = None
     priority: Optional[str] = "normal"
     next_action_at: Optional[datetime] = None
+    category: Optional[str] = "ai"
+    deal_type: Optional[str] = "retainer"
+    urgency: Optional[str] = "normal"
 
 
 class LeadCreate(LeadBase):
@@ -47,6 +50,8 @@ class ManualLeadCreate(BaseModel):
     match_score: Optional[int] = 60
     priority: Optional[str] = "normal"
     next_action_at: Optional[datetime] = None
+    category: Optional[str] = "ai"
+    deal_type: Optional[str] = "retainer"
 
 
 class LeadUpdate(BaseModel):
@@ -69,6 +74,9 @@ class LeadUpdate(BaseModel):
     tags: Optional[str] = None
     priority: Optional[str] = None
     next_action_at: Optional[datetime] = None
+    category: Optional[str] = None
+    deal_type: Optional[str] = None
+    urgency: Optional[str] = None
 
 
 class LeadResponse(LeadBase):
@@ -97,6 +105,9 @@ class LeadBrief(BaseModel):
     sent_at: Optional[datetime] = None
     next_action_at: Optional[datetime] = None
     priority: Optional[str] = "normal"
+    category: Optional[str] = "ai"
+    deal_type: Optional[str] = "retainer"
+    urgency: Optional[str] = "normal"
 
     class Config:
         from_attributes = True

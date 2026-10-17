@@ -2,7 +2,15 @@ import React from 'react';
 import { Building2, PenLine } from 'lucide-react';
 import { Lead } from '../../types';
 import { formatSalary, relativeTime } from '../lib';
-import { PriorityBadge, ScoreRing, SourceBadge, StageBadge } from './ui';
+import {
+  CategoryBadge,
+  DealTypeBadge,
+  PriorityBadge,
+  ScoreRing,
+  SourceBadge,
+  StageBadge,
+  UrgencyTrafficLight,
+} from './ui';
 
 interface LeadCardProps {
   lead: Lead;
@@ -36,7 +44,9 @@ export function LeadCard({ lead, onOpen, onStudio }: LeadCardProps) {
       </div>
 
       <div className="lead-card-meta">
+        <CategoryBadge category={lead.category} />
         <SourceBadge source={lead.source} />
+        <DealTypeBadge dealType={lead.deal_type} />
         <StageBadge status={lead.status} />
         <PriorityBadge priority={lead.priority} />
       </div>
@@ -44,7 +54,7 @@ export function LeadCard({ lead, onOpen, onStudio }: LeadCardProps) {
       <div className="lead-card-foot">
         <span className="money">{formatSalary(lead)}</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          {relativeTime(lead.created_at)}
+          <UrgencyTrafficLight urgency={lead.urgency} text={relativeTime(lead.created_at)} />
           {onStudio && lead.status !== 'sent' && (
             <button
               type="button"

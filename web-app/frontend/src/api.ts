@@ -55,6 +55,9 @@ export interface LeadPatch {
   description?: string;
   priority?: string;
   next_action_at?: string | null;
+  category?: string | null;
+  deal_type?: string | null;
+  urgency?: string | null;
 }
 
 export interface ManualLeadPayload {
@@ -69,6 +72,8 @@ export interface ManualLeadPayload {
   match_score?: number;
   priority?: string;
   next_action_at?: string | null;
+  category?: string | null;
+  deal_type?: string | null;
 }
 
 export interface GenerateOfferOptions {

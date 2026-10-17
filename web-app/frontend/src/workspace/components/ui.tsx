@@ -1,6 +1,14 @@
 import React from 'react';
 import { LeadStatus, Priority } from '../../types';
-import { SOURCE_MAP, STAGE_MAP, formatDue, scoreTone } from '../lib';
+import {
+  CATEGORY_MAP,
+  DEAL_TYPE_MAP,
+  SOURCE_MAP,
+  STAGE_MAP,
+  URGENCY_MAP,
+  formatDue,
+  scoreTone,
+} from '../lib';
 
 export function ScoreRing({ score, size = 24 }: { score: number; size?: number }) {
   const tone = scoreTone(score);
@@ -45,6 +53,37 @@ export function PriorityBadge({ priority }: { priority?: string | null }) {
   return (
     <span className={`badge badge-priority ${priority}`}>
       {priority === 'high' ? 'Высокий' : 'Низкий'}
+    </span>
+  );
+}
+
+export function CategoryBadge({ category, full = false }: { category?: string | null; full?: boolean }) {
+  if (!category) return null;
+  const meta = CATEGORY_MAP[category] ?? CATEGORY_MAP.ai;
+  return (
+    <span className={`badge badge-category tone-${meta.tone}`} title={meta.label}>
+      <span className="badge-emoji">{meta.emoji}</span>
+      <span>{full ? meta.label : meta.short}</span>
+    </span>
+  );
+}
+
+export function DealTypeBadge({ dealType }: { dealType?: string | null }) {
+  if (!dealType) return null;
+  const meta = DEAL_TYPE_MAP[dealType] ?? DEAL_TYPE_MAP.retainer;
+  return (
+    <span className={`badge badge-deal-type tone-${meta.tone}`} title={meta.hint}>
+      {meta.badge}
+    </span>
+  );
+}
+
+export function UrgencyTrafficLight({ urgency, text }: { urgency?: string | null; text?: string }) {
+  const meta = URGENCY_MAP[urgency || 'normal'] ?? URGENCY_MAP.normal;
+  return (
+    <span className={`urgency-light ${meta.id}`} title={meta.label}>
+      <span className={`urgency-dot ${meta.id} ${meta.pulse ? 'pulsing' : ''}`} />
+      <span className="urgency-text">{text || meta.short}</span>
     </span>
   );
 }

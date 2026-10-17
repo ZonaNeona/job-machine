@@ -34,6 +34,11 @@ class Lead(Base):
     priority = Column(String, default="normal")          # high | normal | low
     next_action_at = Column(DateTime, nullable=True)     # follow-up / reminder date
 
+    # Direction wave & Deal weight
+    category = Column(String, default="ai", index=True)      # ai | bots_parsers | web | cms
+    deal_type = Column(String, default="retainer")           # quick | retainer | project
+    urgency = Column(String, default="normal", index=True)   # hot | warm | normal
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     sent_at = Column(DateTime, nullable=True)

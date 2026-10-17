@@ -21,6 +21,16 @@ HABR_SEARCH_PRESETS: List[Dict[str, str]] = [
         "type": "contract",
     },
     {
+        "name": "Веб-разработка & React / Python",
+        "query": "react python",
+        "type": "contract",
+    },
+    {
+        "name": "Парсинг & Скрапинг данных",
+        "query": "парсер",
+        "type": "contract",
+    },
+    {
         "name": "Python Удаленно (Все контракты)",
         "query": "python",
         "type": "contract",
@@ -29,11 +39,17 @@ HABR_SEARCH_PRESETS: List[Dict[str, str]] = [
 
 # Keywords to filter relevant freelance tasks from FL.ru
 FL_RELEVANT_KEYWORDS = [
+    # Боты и парсинг
     "бот", "bot", "telegram", "телеграм", "тг", 
     "парс", "парсинг", "парсер", "scraper", "scraping",
+    # AI и автоматизация
     "python", "питон", "fastapi", "ai", "llm", "нейросет", 
     "gpt", "чат-бот", "интеграция", "crm", "api", "скрипт",
-    "автоматизаци", "разработк"
+    "автоматизаци", "разработк",
+    # Web и сайты
+    "сайт", "лендинг", "веб-сервис", "react", "nextjs", "frontend",
+    # CMS и CRM
+    "битрикс", "bitrix", "wordpress", "1с", "tilda", "amocrm"
 ]
 
 # Excluded keywords on FL.ru (design, texts, etc.)

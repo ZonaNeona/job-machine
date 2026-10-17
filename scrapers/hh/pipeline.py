@@ -20,6 +20,7 @@ if sys.platform == "win32":
 import httpx
 from database import SessionLocal
 from models import Lead, KnowledgeBaseItem
+from classifier import classify_lead_full
 import ai_service
 from config import DEFAULT_SEARCH_PRESETS, MAX_VACANCIES_PER_QUERY
 from hh_parser import search_vacancies, fetch_vacancy_details
@@ -96,6 +97,15 @@ async def run_hh_pipeline(presets: List[Dict[str, str]] = None, max_per_query: i
                             existing_ids.add(ext_id)
                             continue
 
+                        # Classify stream, deal type, urgency
+                        cl = classify_lead_full(
+                            title=details["title"],
+                            description=details["description"],
+                            tags=details["tags"],
+                            salary_raw=details["salary_raw"],
+                            contact_info=details["contact_info"],
+                        )
+
                         # Create and save new Lead
                         new_lead = Lead(
                             external_id=ext_id,
@@ -115,7 +125,10 @@ async def run_hh_pipeline(presets: List[Dict[str, str]] = None, max_per_query: i
                             match_score=match_score,
                             scoring_reason=scoring_reason,
                             generated_offer=None,
-                            custom_notes=f"Автоматически собрано парсером hh.ru по пресету '{query_name}'"
+                            custom_notes=f"Автоматически собрано парсером hh.ru по пресету '{query_name}'",
+                            category=cl["category"],
+                            deal_type=cl["deal_type"],
+                            urgency=cl["urgency"],
                         )
 
                         db.add(new_lead)

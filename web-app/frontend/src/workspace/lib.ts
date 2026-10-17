@@ -55,6 +55,54 @@ export const PRIORITIES = [
   { id: 'low', label: 'Низкий', tone: 'low' },
 ];
 
+export interface CategoryMeta {
+  id: string;
+  label: string;
+  short: string;
+  color: string;
+  tone: string;
+  emoji: string;
+}
+
+export const CATEGORIES: CategoryMeta[] = [
+  { id: 'ai', label: 'AI & Агенты', short: 'AI / LLM', color: '#8b5cf6', tone: 'ai', emoji: '🟣' },
+  { id: 'bots_parsers', label: 'Боты & Парсинг', short: 'Боты/Парсеры', color: '#3b82f6', tone: 'bots', emoji: '🔵' },
+  { id: 'web', label: 'Сайты & Web', short: 'Сайты/Web', color: '#10b981', tone: 'web', emoji: '🟢' },
+  { id: 'cms', label: 'CMS & Интеграции', short: 'CMS/CRM', color: '#f59e0b', tone: 'cms', emoji: '🟠' },
+];
+
+export const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map((c) => [c.id, c])) as Record<string, CategoryMeta>;
+
+export interface DealTypeMeta {
+  id: string;
+  label: string;
+  badge: string;
+  tone: string;
+  hint: string;
+}
+
+export const DEAL_TYPES: DealTypeMeta[] = [
+  { id: 'retainer', label: 'Ретейнер', badge: '💎 Ретейнер', tone: 'purple', hint: 'Ежемесячный подряд / постоянный клиент' },
+  { id: 'quick', label: 'Быстрый чек', badge: '⚡ Быстрый чек', tone: 'amber', hint: 'Задача на 1-2 дня, быстрый транш' },
+  { id: 'project', label: 'Проект/MVP', badge: '🏗 Проект', tone: 'blue', hint: 'Проектная разработка под ключ' },
+];
+
+export const DEAL_TYPE_MAP = Object.fromEntries(DEAL_TYPES.map((d) => [d.id, d])) as Record<string, DealTypeMeta>;
+
+export interface UrgencyMeta {
+  id: string;
+  label: string;
+  short: string;
+  tone: string;
+  pulse: boolean;
+}
+
+export const URGENCY_MAP: Record<string, UrgencyMeta> = {
+  hot: { id: 'hot', label: 'Горящий (<2ч)', short: 'Срочно', tone: 'danger', pulse: true },
+  warm: { id: 'warm', label: 'Свежий (сегодня)', short: 'Свежий', tone: 'warning', pulse: false },
+  normal: { id: 'normal', label: 'Плановый', short: 'Обычный', tone: 'muted', pulse: false },
+};
+
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
 export const MOD_LABEL = IS_MAC ? '⌘' : 'Ctrl';
 

@@ -139,6 +139,9 @@ def get_stats(db: Session = Depends(get_db)):
 def get_leads(
     status: Optional[str] = None,
     source: Optional[str] = None,
+    category: Optional[str] = None,
+    urgency: Optional[str] = None,
+    deal_type: Optional[str] = None,
     search: Optional[str] = None,
     min_score: Optional[int] = None,
     limit: Optional[int] = Query(default=None, ge=1, le=1000),
@@ -150,6 +153,12 @@ def get_leads(
         query = query.filter(Lead.status == status)
     if source and source != "all":
         query = query.filter(Lead.source == source)
+    if category and category != "all":
+        query = query.filter(Lead.category == category)
+    if urgency and urgency != "all":
+        query = query.filter(Lead.urgency == urgency)
+    if deal_type and deal_type != "all":
+        query = query.filter(Lead.deal_type == deal_type)
     if min_score is not None:
         query = query.filter(Lead.match_score >= min_score)
     if search:
@@ -171,6 +180,14 @@ def get_leads(
 @app.post("/api/leads", response_model=LeadResponse, status_code=201)
 def create_lead(payload: ManualLeadCreate, db: Session = Depends(get_db)):
     """Add a lead manually — a warm contact, a referral, a chat message."""
+    from classifier import classify_lead_full
+    meta = classify_lead_full(
+        title=payload.title.strip(),
+        description=payload.description or "",
+        tags=payload.tags or "",
+        salary_raw=payload.salary_raw or "",
+        contact_info=payload.contact_info or "",
+    )
     lead = Lead(
         title=payload.title.strip(),
         company=payload.company,
@@ -184,6 +201,9 @@ def create_lead(payload: ManualLeadCreate, db: Session = Depends(get_db)):
         match_score=payload.match_score or 60,
         priority=payload.priority or "normal",
         next_action_at=payload.next_action_at,
+        category=payload.category or meta["category"],
+        deal_type=payload.deal_type or meta["deal_type"],
+        urgency=meta["urgency"],
     )
     db.add(lead)
     db.flush()

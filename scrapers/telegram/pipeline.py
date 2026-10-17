@@ -21,6 +21,7 @@ if str(BACKEND_DIR) not in sys.path:
 import httpx
 from database import SessionLocal
 from models import Lead, KnowledgeBaseItem
+from classifier import classify_lead_full
 import ai_service
 
 from config import (
@@ -159,6 +160,15 @@ async def run_telegram_pipeline(channels: List[str] = None, limit_per_channel: i
                     existing_ids.add(ext_id)
                     continue
 
+                # Classify stream, deal type, urgency
+                cl = classify_lead_full(
+                    title=title,
+                    description=msg["text"],
+                    tags="Telegram, Python, Automation",
+                    salary_raw=salary_raw,
+                    contact_info=contacts,
+                )
+
                 # Create Lead
                 new_lead = Lead(
                     external_id=ext_id,
@@ -178,7 +188,10 @@ async def run_telegram_pipeline(channels: List[str] = None, limit_per_channel: i
                     match_score=match_score,
                     scoring_reason=scoring_reason,
                     generated_offer=None,
-                    custom_notes=f"Перехвачено из Telegram @{msg['channel']}"
+                    custom_notes=f"Перехвачено из Telegram @{msg['channel']}",
+                    category=cl["category"],
+                    deal_type=cl["deal_type"],
+                    urgency=cl["urgency"],
                 )
 
                 db.add(new_lead)

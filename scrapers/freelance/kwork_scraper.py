@@ -17,7 +17,16 @@ HEADERS = {
     "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
 }
 
-DEFAULT_KEYWORDS = ["telegram", "python", "бот", "парсер", "ai", "fastapi", "автоматизация"]
+DEFAULT_KEYWORDS = [
+    # AI & Автоматизация
+    "telegram", "ai", "llm", "нейросеть", "автоматизация", "fastapi",
+    # Боты & Парсеры
+    "бот", "парсер", "scraping", "python", "скрипт",
+    # Сайты & Web
+    "лендинг", "сайт", "react", "веб-разработка",
+    # CMS, CRM & Интеграции
+    "битрикс", "bitrix", "wordpress", "1с", "amocrm", "интеграция api"
+]
 
 def clean_html_text(raw_text: str) -> str:
     """Strip HTML tags and clean up whitespace."""
