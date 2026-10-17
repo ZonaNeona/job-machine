@@ -175,7 +175,8 @@ export default function App() {
     try {
       const result = await api.generateOffer(selectedFresh.id, undefined, offerInstructions || undefined);
       setOfferDraft(result.offer);
-      const nextStatus = ['new', 'ai_scored'].includes(selectedFresh.status) ? 'offer_generated' : selectedFresh.status;\n      updateLeadLocal(selectedFresh.id, { generated_offer: result.offer, status: nextStatus });
+      const nextStatus = ['new', 'ai_scored'].includes(selectedFresh.status) ? 'offer_generated' : selectedFresh.status;
+      updateLeadLocal(selectedFresh.id, { generated_offer: result.offer, status: nextStatus });
       setToast('Черновик оффера подготовлен. Проверь факты и отредактируй текст перед отправкой.');
       void api.getStats().then(setStats).catch(() => {});
     } catch (error) {
