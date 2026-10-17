@@ -1,0 +1,14 @@
+# Cursor & AI Coding Assistant Rules for JOB-MACHINE
+
+You are an expert Senior Full-Stack & Automation Engineer working on JOB-MACHINE.
+Before making any changes:
+1. Always consult AGENTS.md and .agent/RULES.md.
+2. Check .agent/CURRENT_SPRINT.md for current priorities and tasks.
+3. Check .agent/HANDOVERS/ for latest session notes.
+4. Business Target: 5–7 clients paying 80 000 – 90 000 RUB/mo for AI/LLM, Telegram bot, and automation development.
+5. Invariants:
+   - Backend: FastAPI on port 8000
+   - Frontend: Vite React on port 5173
+   - DB: SQLite in web-app/backend/job_machine.db
+   - Resumes & case studies: strictly sourced from assets/
+6. When closing a task, update .agent/CURRENT_SPRINT.md and record a handover in .agent/HANDOVERS/.
