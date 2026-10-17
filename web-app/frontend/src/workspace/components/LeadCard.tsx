@@ -5,10 +5,12 @@ import { formatSalary, relativeTime } from '../lib';
 import {
   CategoryBadge,
   DealTypeBadge,
+  DirectContactsBadge,
   PriorityBadge,
   ScoreRing,
   SourceBadge,
   StageBadge,
+  SweetSpotBadge,
   UrgencyTrafficLight,
 } from './ui';
 
@@ -44,6 +46,8 @@ export function LeadCard({ lead, onOpen, onStudio }: LeadCardProps) {
       </div>
 
       <div className="lead-card-meta">
+        <SweetSpotBadge score={lead.sweet_spot_score} hours={lead.estimated_hours} />
+        <DirectContactsBadge contactsJson={lead.direct_contacts_json} />
         <CategoryBadge category={lead.category} />
         <SourceBadge source={lead.source} />
         <DealTypeBadge dealType={lead.deal_type} />

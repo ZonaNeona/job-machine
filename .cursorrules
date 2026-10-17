@@ -12,3 +12,8 @@ Before making any changes:
    - DB: SQLite in web-app/backend/job_machine.db
    - Resumes & case studies: strictly sourced from assets/
 6. When closing a task, update .agent/CURRENT_SPRINT.md and record a handover in .agent/HANDOVERS/.
+7. MCP Server & Intelligence Core:
+   - FastMCP server is available at `mcp_server.py` (configured in `.cursor/mcp.json`).
+   - Tools available: `job_machine_sql`, `job_machine_platform_audit`, `job_machine_get_sweet_spot_leads`, `job_machine_audit_funnel`, `job_machine_inspect_employer`.
+   - Core analytics and safe SQL functions are defined in `shared/intelligence.py`.
+

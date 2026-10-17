@@ -23,6 +23,24 @@ from schemas import (
 from seed_data import seed_database
 import ai_service
 
+import sys
+from pathlib import Path
+BACKEND_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = BACKEND_ROOT.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from shared.intelligence import (
+    execute_readonly_sql,
+    get_platform_analytics,
+    get_sweet_spot_leads,
+    audit_funnel,
+    inspect_employer,
+    set_employer_blacklist,
+)
+import ai_copilot
+
+
 # Initialize Database and seed data on startup
 init_db()
 with next(get_db()) as db:
@@ -654,6 +672,56 @@ async def test_openrouter_connection(payload: dict = Body(default={}), db: Sessi
             "model": model,
             "message": f"Ошибка запроса к OpenRouter ({model}): {str(e)}"
         }
+
+
+# --- Unified Intelligence Engine & Copilot Endpoints ---
+
+@app.get("/api/intelligence/audit")
+def get_intelligence_audit():
+    """Returns platform yield, noise ratios, and funnel bottlenecks."""
+    analytics = get_platform_analytics()
+    funnel = audit_funnel()
+    return {"status": "success", "analytics": analytics, "funnel": funnel}
+
+
+@app.get("/api/intelligence/sweet-spot")
+def get_sweet_spot(
+    limit: int = Query(5, ge=1, le=20),
+    category: Optional[str] = Query(None),
+    urgency: Optional[str] = Query(None),
+    min_score: int = Query(60, ge=0, le=100),
+):
+    """Returns high-yield, low-friction leads prioritized by Sweet Spot score."""
+    return get_sweet_spot_leads(limit=limit, category=category, urgency=urgency, min_score=min_score)
+
+
+@app.post("/api/intelligence/query-sql")
+def query_sql(payload: dict = Body(default={})):
+    """Executes safe read-only SELECT queries for IDE agents and analytics."""
+    query = payload.get("query", "")
+    max_rows = payload.get("max_rows", 50)
+    return execute_readonly_sql(query=query, max_rows=max_rows)
+
+
+@app.post("/api/intelligence/blacklist")
+def blacklist_employer(payload: dict = Body(default={})):
+    """Adds or removes an employer from the blacklist."""
+    source = payload.get("source", "")
+    platform_employer_id = payload.get("platform_employer_id", "")
+    name = payload.get("name", "")
+    reason = payload.get("reason", "Заблокирован пользователем")
+    is_blacklisted = payload.get("is_blacklisted", True)
+    return set_employer_blacklist(source, platform_employer_id, name, reason, is_blacklisted)
+
+
+@app.post("/api/copilot/chat")
+async def copilot_chat(payload: dict = Body(default={})):
+    """In-app conversational copilot that audits platforms and evaluates leads."""
+    messages = payload.get("messages", [])
+    lead_id = payload.get("lead_id")
+    model = payload.get("model")
+    return await ai_copilot.answer_copilot(messages=messages, lead_id=lead_id, model=model)
+
 
 
 # --- HeadHunter Scraper Background Tasks & Status ---

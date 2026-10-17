@@ -47,6 +47,14 @@ def _migrate_lead_columns():
             conn.execute(text("ALTER TABLE leads ADD COLUMN deal_type VARCHAR DEFAULT 'retainer'"))
         if "urgency" not in existing:
             conn.execute(text("ALTER TABLE leads ADD COLUMN urgency VARCHAR DEFAULT 'normal'"))
+        if "sweet_spot_score" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN sweet_spot_score INTEGER DEFAULT 5"))
+        if "estimated_hours" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN estimated_hours FLOAT DEFAULT 4.0"))
+        if "direct_contacts_json" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN direct_contacts_json TEXT"))
+        if "employer_id" not in existing:
+            conn.execute(text("ALTER TABLE leads ADD COLUMN employer_id INTEGER"))
         conn.commit()
 
     try:

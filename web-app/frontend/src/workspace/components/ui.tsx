@@ -97,6 +97,68 @@ export function DueLabel({ value }: { value?: string | null }) {
   );
 }
 
+export function SweetSpotBadge({ score, hours }: { score?: number | null; hours?: number | null }) {
+  if (!score || score < 6) return null;
+  const isTop = score >= 9;
+  return (
+    <span
+      className="badge"
+      title={`Индекс выгоды Sweet Spot: ${score}/10 (${hours ? `~${hours}ч` : ''})`}
+      style={{
+        background: isTop ? '#fef3c7' : '#ecfdf5',
+        color: isTop ? '#92400e' : '#065f46',
+        borderColor: isTop ? '#fde68a' : '#a7f3d0',
+        fontWeight: 600,
+        fontSize: 11,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        padding: '2px 7px',
+        borderRadius: 9999,
+        border: '1px solid',
+      }}
+    >
+      <span>⚡ {score}/10</span>
+      {hours && <span style={{ opacity: 0.8, fontSize: 10 }}>~{hours}ч</span>}
+    </span>
+  );
+}
+
+export function DirectContactsBadge({ contactsJson }: { contactsJson?: string | null }) {
+  if (!contactsJson) return null;
+  try {
+    const parsed = JSON.parse(contactsJson);
+    const tg = parsed.telegram?.[0];
+    const mail = parsed.email?.[0];
+    const phone = parsed.phone?.[0];
+    if (!tg && !mail && !phone) return null;
+
+    return (
+      <span
+        className="badge"
+        style={{
+          background: '#e0f2fe',
+          color: '#0369a1',
+          borderColor: '#bae6fd',
+          fontWeight: 600,
+          fontSize: 11,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '2px 7px',
+          borderRadius: 9999,
+          border: '1px solid',
+        }}
+        title={`Прямой контакт обнаружен: ${tg || mail || phone}`}
+      >
+        <span>✈️ {tg || mail || 'Прямой контакт'}</span>
+      </span>
+    );
+  } catch {
+    return null;
+  }
+}
+
 export function EmptyState({
   icon,
   title,

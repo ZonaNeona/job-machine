@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, Inbox, PenLine, Search, SlidersHorizontal } from 'lucide-react';
 import { Lead, LeadCategory, LeadStatus } from '../../types';
 import { CATEGORIES, SOURCES, STAGE_MAP, STAGES, formatSalary, plural, relativeTime } from '../lib';
-import { CategoryBadge, DealTypeBadge, DueLabel, EmptyState, ScoreRing, SourceBadge, UrgencyTrafficLight } from '../components/ui';
+import { CategoryBadge, DealTypeBadge, DirectContactsBadge, DueLabel, EmptyState, ScoreRing, SourceBadge, SweetSpotBadge, UrgencyTrafficLight } from '../components/ui';
 
 interface StreamViewProps {
   leads: Lead[];
@@ -13,7 +13,7 @@ interface StreamViewProps {
 }
 
 type SortMode = 'score' | 'newest' | 'updated';
-type StreamSlice = 'all' | 'hot' | 'ai' | 'quick' | 'retainer' | 'bots' | 'web' | 'cms' | 'replied';
+type StreamSlice = 'all' | 'sprint' | 'direct' | 'hot' | 'ai' | 'quick' | 'retainer' | 'bots' | 'web' | 'cms' | 'replied';
 
 export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatus }: StreamViewProps) {
   const [slice, setSlice] = useState<StreamSlice>('all');
@@ -31,6 +31,8 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
   const sliceCounts = useMemo(() => {
     return {
       all: leads.length,
+      sprint: leads.filter((l) => (l.sweet_spot_score || 0) >= 8).length,
+      direct: leads.filter((l) => Boolean(l.direct_contacts_json)).length,
       hot: leads.filter((l) => l.urgency === 'hot').length,
       ai: leads.filter((l) => l.category === 'ai').length,
       quick: leads.filter((l) => l.deal_type === 'quick').length,
@@ -48,6 +50,8 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
     return leads
       .filter((lead) => {
         // Fast slices filter
+        if (slice === 'sprint' && (lead.sweet_spot_score || 0) < 8) return false;
+        if (slice === 'direct' && !lead.direct_contacts_json) return false;
         if (slice === 'hot' && lead.urgency !== 'hot') return false;
         if (slice === 'ai' && lead.category !== 'ai') return false;
         if (slice === 'bots' && lead.category !== 'bots_parsers') return false;
@@ -132,6 +136,24 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
         >
           <span>Все лиды</span>
           <span className="slice-count">{sliceCounts.all}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'sprint' ? 'active' : ''}`}
+          onClick={() => setSlice('sprint')}
+          style={slice === 'sprint' ? { background: '#fef3c7', borderColor: '#fde68a', color: '#92400e' } : undefined}
+        >
+          <span>⚡ Спринт (Sweet Spot)</span>
+          <span className="slice-count">{sliceCounts.sprint}</span>
+        </button>
+        <button
+          type="button"
+          className={`slice-pill ${slice === 'direct' ? 'active' : ''}`}
+          onClick={() => setSlice('direct')}
+          style={slice === 'direct' ? { background: '#e0f2fe', borderColor: '#bae6fd', color: '#0369a1' } : undefined}
+        >
+          <span>✈️ Прямой контакт</span>
+          <span className="slice-count">{sliceCounts.direct}</span>
         </button>
         <button
           type="button"
@@ -285,9 +307,11 @@ export function StreamView({ leads, loading, onOpenLead, onStudio, onChangeStatu
                     <td><ScoreRing score={lead.match_score} /></td>
                     <td>
                       <div className="cell-title">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <UrgencyTrafficLight urgency={lead.urgency} />
                           <span className="row-title">{lead.title}</span>
+                          <SweetSpotBadge score={lead.sweet_spot_score} hours={lead.estimated_hours} />
+                          <DirectContactsBadge contactsJson={lead.direct_contacts_json} />
                         </div>
                         <span className="row-sub">
                           <span className="truncate">{lead.company || 'Без компании'}</span>

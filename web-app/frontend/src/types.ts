@@ -50,6 +50,10 @@ export interface Lead {
   category?: LeadCategory | string | null;
   deal_type?: DealType | string | null;
   urgency?: Urgency | string | null;
+  sweet_spot_score?: number | null;
+  estimated_hours?: number | null;
+  direct_contacts_json?: string | null;
+  employer_id?: number | null;
   created_at: string;
   updated_at: string;
   sent_at?: string | null;

@@ -20,6 +20,7 @@ import { KnowledgeView } from './workspace/views/KnowledgeView';
 import { SettingsView } from './workspace/views/SettingsView';
 import { AccountsView } from './workspace/views/AccountsView';
 import { TechSettingsView } from './workspace/views/TechSettingsView';
+import { CopilotWidget } from './workspace/components/CopilotWidget';
 
 const VIEW_TITLE: Record<WorkspaceView, string> = {
   today: 'Сегодня',
@@ -90,6 +91,8 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [dispatchTarget, setDispatchTarget] = useState<Lead | null>(null);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [copilotLeadId, setCopilotLeadId] = useState<number | null>(null);
 
   const [studioId, setStudioId] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
@@ -103,6 +106,10 @@ export default function App() {
   const drawerLead = useMemo(
     () => leads.find((lead) => lead.id === drawerLeadId) ?? null,
     [leads, drawerLeadId],
+  );
+  const copilotLead = useMemo(
+    () => leads.find((l) => l.id === (copilotLeadId ?? drawerLeadId)) ?? null,
+    [leads, copilotLeadId, drawerLeadId],
   );
   const studioLead = useMemo(
     () => leads.find((lead) => lead.id === studioId) ?? null,
@@ -430,6 +437,7 @@ export default function App() {
           onSave={(lead, patch) => ws.patchLead(lead, patch, { message: 'Поля лида сохранены' })}
           onChangeStatus={changeStatus}
           onStudio={(id) => { setDrawerLeadId(null); goStudio(id); }}
+          onOpenCopilot={(id) => { setCopilotLeadId(id); setCopilotOpen(true); }}
           notify={ws.notify}
         />
       )}
@@ -461,6 +469,14 @@ export default function App() {
           onConfirm={confirmDispatch}
         />
       )}
+
+      <CopilotWidget
+        isOpen={copilotOpen}
+        onToggle={() => setCopilotOpen(!copilotOpen)}
+        currentLead={copilotLead}
+        onSelectLead={openLead}
+        notify={ws.notify}
+      />
 
       <ToastStack toasts={ws.toasts} onDismiss={ws.dismissToast} />
     </div>

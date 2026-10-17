@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Check, Copy, ExternalLink, FileText, LoaderCircle, Mail, PenLine, Send, X,
+  ArrowRight, Ban, Bot, Check, Copy, ExternalLink, FileText, LoaderCircle, Mail, PenLine, Send, Sparkles, X,
 } from 'lucide-react';
 import { api, LeadPatch } from '../../api';
 import { Lead, LeadEvent, LeadStatus } from '../../types';
 import {
   CATEGORIES, DEAL_TYPES, SOURCE_MAP, STAGES, STAGE_MAP, contactTarget, formatDateTime, formatSalary, parseDate, parseTags, relativeTime,
 } from '../lib';
-import { CategoryBadge, DealTypeBadge, DueLabel, PriorityBadge, ScoreRing, SourceBadge, UrgencyTrafficLight } from '../components/ui';
+import { CategoryBadge, DealTypeBadge, DirectContactsBadge, DueLabel, PriorityBadge, ScoreRing, SourceBadge, SweetSpotBadge, UrgencyTrafficLight } from '../components/ui';
 
 interface LeadDrawerProps {
   lead: Lead;
@@ -15,6 +15,7 @@ interface LeadDrawerProps {
   onSave: (lead: Lead, patch: LeadPatch) => Promise<unknown>;
   onChangeStatus: (lead: Lead, status: LeadStatus) => void;
   onStudio: (id: number) => void;
+  onOpenCopilot?: (leadId: number) => void;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
 }
 
@@ -77,6 +78,26 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  const directContacts = useMemo(() => {
+    if (!lead.direct_contacts_json) return null;
+    try {
+      return JSON.parse(lead.direct_contacts_json);
+    } catch {
+      return null;
+    }
+  }, [lead.direct_contacts_json]);
+
+  const handleBlacklist = async () => {
+    if (!lead.company) return;
+    if (!window.confirm(`Заблокировать заказчика "${lead.company}" (${lead.source})? Все его будущие заказы будут автоматически скрыты.`)) return;
+    try {
+      await api.blacklistEmployer(lead.source, lead.company, lead.company, 'Заблокирован пользователем из карточки лида');
+      notify(`Заказчик "${lead.company}" добавлен в черный список`, 'info');
+    } catch {
+      notify('Не удалось добавить в черный список', 'error');
+    }
+  };
 
   const contact = contactTarget(lead);
   const tags = parseTags(lead.tags);
@@ -151,6 +172,8 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
 
           <div className="drawer-badges">
             <UrgencyTrafficLight urgency={lead.urgency} />
+            <SweetSpotBadge score={lead.sweet_spot_score} hours={lead.estimated_hours} />
+            <DirectContactsBadge contactsJson={lead.direct_contacts_json} />
             <CategoryBadge category={lead.category} full />
             <DealTypeBadge dealType={lead.deal_type} />
             <span className={`badge badge-stage tone-${STAGE_MAP[lead.status]?.tone ?? 'gray'}`}>
@@ -188,6 +211,75 @@ export function LeadDrawer({ lead, onClose, onSave, onChangeStatus, onStudio, no
                     {stage.short}
                   </button>
                 ))}
+              </div>
+
+              {directContacts && (directContacts.telegram?.length > 0 || directContacts.email?.length > 0 || directContacts.phone?.length > 0) && (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ color: '#166534', fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚡ Прямой контакт в обход биржи</span>
+                    </span>
+                    <span style={{ fontSize: 11, color: '#15803d', fontWeight: 600 }}>Без комиссии</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {directContacts.telegram?.map((tg: string) => (
+                      <a
+                        key={tg}
+                        href={`https://t.me/${tg.replace('@', '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-sm btn-primary"
+                        style={{ height: 30, fontSize: 12, textDecoration: 'none' }}
+                      >
+                        ✈️ Telegram {tg}
+                      </a>
+                    ))}
+                    {directContacts.email?.map((em: string) => (
+                      <a
+                        key={em}
+                        href={`mailto:${em}`}
+                        className="btn btn-sm"
+                        style={{ height: 30, fontSize: 12, textDecoration: 'none' }}
+                      >
+                        ✉️ Email {em}
+                      </a>
+                    ))}
+                    {directContacts.phone?.map((ph: string) => (
+                      <a
+                        key={ph}
+                        href={`tel:${ph}`}
+                        className="btn btn-sm"
+                        style={{ height: 30, fontSize: 12, textDecoration: 'none' }}
+                      >
+                        📞 {ph}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                {onOpenCopilot && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{ flex: 1, height: 34, fontSize: 12, background: '#f8fafc', borderColor: '#cbd5e1' }}
+                    onClick={() => onOpenCopilot(lead.id)}
+                  >
+                    <Bot size={14} color="#0284c7" /> Спросить Копилота о лиде
+                  </button>
+                )}
+                {lead.company && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{ height: 34, fontSize: 12, color: '#991b1b', borderColor: '#fecaca', background: '#fff' }}
+                    title="Заблокировать заказчика на этой площадке"
+                    onClick={handleBlacklist}
+                  >
+                    <Ban size={13} /> В бан
+                  </button>
+                )}
               </div>
 
               <div className="ctx-block">

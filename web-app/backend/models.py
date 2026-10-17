@@ -39,6 +39,12 @@ class Lead(Base):
     deal_type = Column(String, default="retainer")           # quick | retainer | project
     urgency = Column(String, default="normal", index=True)   # hot | warm | normal
 
+    # Sweet Spot ROI & Direct contact bypass
+    sweet_spot_score = Column(Integer, default=5, index=True)   # 1..10 (Money / Effort ratio)
+    estimated_hours = Column(Float, default=4.0)               # Estimated dev hours
+    direct_contacts_json = Column(Text, nullable=True)         # JSON: {"telegram": "...", "email": "..."}
+    employer_id = Column(Integer, index=True, nullable=True)   # FK-like reference to employers.id
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     sent_at = Column(DateTime, nullable=True)
@@ -126,3 +132,44 @@ class AccountChat(Base):
     last_synced_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class RawInboxItem(Base):
+    """Raw unscored leads collected from scrapers before AI triage and junk filtering."""
+    __tablename__ = "raw_inbox"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String, index=True, nullable=False)  # hh.ru, telegram, fl_ru, kwork, habr_freelance, avito
+    external_id = Column(String, index=True, nullable=True)
+    title = Column(String, nullable=False)
+    raw_content = Column(Text, nullable=False)
+    url = Column(String, nullable=True)
+    author = Column(String, nullable=True)
+    platform_employer_id = Column(String, index=True, nullable=True)
+    salary_raw = Column(String, nullable=True)
+    
+    # Triage state: 'pending', 'processed', 'rejected_junk', 'rejected_blacklist'
+    status = Column(String, default="pending", index=True)
+    reject_reason = Column(String, nullable=True)
+    lead_id = Column(Integer, index=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    processed_at = Column(DateTime, nullable=True)
+
+
+class Employer(Base):
+    """Employer / client registry per platform to manage history, reputation, and blacklist."""
+    __tablename__ = "employers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String, index=True, nullable=False)  # hh.ru, telegram, fl_ru, kwork, etc.
+    platform_employer_id = Column(String, index=True, nullable=False)  # composite identity with source
+    name = Column(String, nullable=False)
+    profile_url = Column(String, nullable=True)
+    is_blacklisted = Column(Boolean, default=False, index=True)
+    blacklist_reason = Column(String, nullable=True)
+    rating = Column(Float, nullable=True)
+    reviews_count = Column(Integer, default=0)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+

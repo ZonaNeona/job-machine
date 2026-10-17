@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "job-machine": {
+      "command": "py",
+      "args": ["F:\\JOB-MACHINE\\mcp_server.py"]
+    }
+  }
+}

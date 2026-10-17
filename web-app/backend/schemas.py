@@ -31,6 +31,10 @@ class LeadBase(BaseModel):
     category: Optional[str] = "ai"
     deal_type: Optional[str] = "retainer"
     urgency: Optional[str] = "normal"
+    sweet_spot_score: Optional[int] = 5
+    estimated_hours: Optional[float] = 4.0
+    direct_contacts_json: Optional[str] = None
+    employer_id: Optional[int] = None
 
 
 class LeadCreate(LeadBase):
@@ -77,6 +81,10 @@ class LeadUpdate(BaseModel):
     category: Optional[str] = None
     deal_type: Optional[str] = None
     urgency: Optional[str] = None
+    sweet_spot_score: Optional[int] = None
+    estimated_hours: Optional[float] = None
+    direct_contacts_json: Optional[str] = None
+    employer_id: Optional[int] = None
 
 
 class LeadResponse(LeadBase):

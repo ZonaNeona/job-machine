@@ -200,6 +200,37 @@ export const api = {
       `/accounts/${encodeURIComponent(platform)}/chats/${encodeURIComponent(chatId)}/read`,
       { method: 'POST' },
     ),
+
+  getIntelligenceAudit: () =>
+    request<{ status: string; analytics: any; funnel: any }>('/intelligence/audit'),
+
+  getSweetSpotLeads: (opts?: { limit?: number; category?: string; urgency?: string; min_score?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.limit) params.append('limit', String(opts.limit));
+    if (opts?.category) params.append('category', opts.category);
+    if (opts?.urgency) params.append('urgency', opts.urgency);
+    if (opts?.min_score) params.append('min_score', String(opts.min_score));
+    const q = params.toString();
+    return request<{ status: string; count: number; leads: Lead[] }>(`/intelligence/sweet-spot${q ? `?${q}` : ''}`);
+  },
+
+  querySql: (query: string, max_rows = 50) =>
+    request<{ status: string; columns: string[]; row_count: number; data: any[]; message?: string }>(
+      '/intelligence/query-sql',
+      json({ query, max_rows })
+    ),
+
+  blacklistEmployer: (source: string, platformEmployerId: string, name: string, reason?: string) =>
+    request<{ status: string; is_blacklisted: boolean }>(
+      '/intelligence/blacklist',
+      json({ source, platform_employer_id: platformEmployerId, name, reason })
+    ),
+
+  postCopilotChat: (messages: Array<{ role: string; content: string }>, leadId?: number, model?: string) =>
+    request<{ status: string; reply: string; model_used: string; has_lead_context: boolean }>(
+      '/copilot/chat',
+      json({ messages, lead_id: leadId, model })
+    ),
 };
 
 export { SCRAPER_PATHS };
