@@ -155,6 +155,12 @@ export const api = {
 
   testAlert: () => request<Record<string, unknown>>('/alerts/test', { method: 'POST' }),
 
+  testOpenRouter: (model?: string) =>
+    request<{ status: string; message: string; model?: string; latency_ms?: number }>(
+      '/settings/test-openrouter',
+      json({ model })
+    ),
+
   getAccounts: () => request<AccountPlatform[]>('/accounts'),
 
   getAccount: (platform: string) => request<AccountPlatform>(`/accounts/${encodeURIComponent(platform)}`),

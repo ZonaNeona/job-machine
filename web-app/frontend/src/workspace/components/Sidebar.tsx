@@ -1,12 +1,12 @@
 import React from 'react';
 import {
-  BookOpen, ChevronDown, Columns3, Inbox, KeyRound, PenLine, Plus, Plug, Sparkles, Sunrise,
+  BookOpen, ChevronDown, Columns3, Inbox, KeyRound, PenLine, Plus, Plug, Settings, Sparkles, Sunrise,
 } from 'lucide-react';
 import { ScraperKey, WorkspaceOverview } from '../../types';
 import { SOURCE_MAP, formatMoney } from '../lib';
 import { Spinner } from './ui';
 
-export type WorkspaceView = 'today' | 'stream' | 'funnel' | 'studio' | 'knowledge' | 'accounts' | 'settings';
+export type WorkspaceView = 'today' | 'stream' | 'funnel' | 'studio' | 'knowledge' | 'accounts' | 'settings' | 'tech';
 
 const NAV: { id: WorkspaceView; label: string; icon: React.ElementType }[] = [
   { id: 'today', label: 'Сегодня', icon: Sunrise },
@@ -16,6 +16,7 @@ const NAV: { id: WorkspaceView; label: string; icon: React.ElementType }[] = [
   { id: 'knowledge', label: 'База знаний', icon: BookOpen },
   { id: 'accounts', label: 'Аккаунты', icon: KeyRound },
   { id: 'settings', label: 'Источники', icon: Plug },
+  { id: 'tech', label: 'Тех. настройки', icon: Settings },
 ];
 
 const SOURCE_SCRAPER: Record<string, ScraperKey | null> = {

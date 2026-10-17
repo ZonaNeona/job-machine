@@ -19,6 +19,7 @@ import { StudioView } from './workspace/views/StudioView';
 import { KnowledgeView } from './workspace/views/KnowledgeView';
 import { SettingsView } from './workspace/views/SettingsView';
 import { AccountsView } from './workspace/views/AccountsView';
+import { TechSettingsView } from './workspace/views/TechSettingsView';
 
 const VIEW_TITLE: Record<WorkspaceView, string> = {
   today: 'Сегодня',
@@ -28,9 +29,10 @@ const VIEW_TITLE: Record<WorkspaceView, string> = {
   knowledge: 'База знаний',
   accounts: 'Аккаунты',
   settings: 'Источники',
+  tech: 'Тех. настройки',
 };
 
-const VIEWS: WorkspaceView[] = ['today', 'stream', 'funnel', 'studio', 'knowledge', 'accounts', 'settings'];
+const VIEWS: WorkspaceView[] = ['today', 'stream', 'funnel', 'studio', 'knowledge', 'accounts', 'settings', 'tech'];
 
 function viewFromHash(): WorkspaceView {
   const raw = window.location.hash.replace(/^#\/?/, '');
@@ -63,8 +65,12 @@ const VIEW_HEAD: Record<WorkspaceView, { title: string; sub: string }> = {
     sub: 'Сессии личных кабинетов, синк чатов и быстрая обратная связь по ответам.',
   },
   settings: {
-    title: 'Источники и подключения',
-    sub: 'Что подключено, когда последний сбор и какие правила работают без тебя.',
+    title: 'Источники сбора',
+    sub: 'Подключённые каналы, ручной запуск парсеров и здоровье инджесторов.',
+  },
+  tech: {
+    title: 'Технические настройки',
+    sub: 'Активность ботов, расписание (cron), выбор моделей OpenRouter и системные пороги.',
   },
 };
 
@@ -239,6 +245,7 @@ export default function App() {
     knowledge: ws.kb.length,
     accounts: ws.accountChats.filter((chat) => chat.unread || chat.has_reply).length || undefined,
     settings: undefined,
+    tech: undefined,
   };
 
   const head = view === 'today' ? { ...VIEW_HEAD.today, title: `${greeting()}, Игорь` } : VIEW_HEAD[view];
@@ -401,6 +408,16 @@ export default function App() {
               onRunAll={ws.runAllScrapers}
               onSave={ws.saveSettings}
               onTestAlert={testAlert}
+            />
+          )}
+
+          {view === 'tech' && (
+            <TechSettingsView
+              settings={ws.settings}
+              busy={ws.busy}
+              saving={Boolean(ws.busy.settings)}
+              onSave={ws.saveSettings}
+              notify={ws.notify}
             />
           )}
         </main>

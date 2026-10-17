@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
@@ -412,6 +412,16 @@ def _setting_int(db: Session, key: str, default: int) -> int:
     except (TypeError, ValueError):
         return default
 
+def _setting_str(db: Session, key: str, default: str) -> str:
+    item = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+    return item.value if (item and item.value is not None) else default
+
+def _setting_bool(db: Session, key: str, default: bool) -> bool:
+    val = _setting_str(db, key, "").lower()
+    if not val:
+        return default
+    return val in {"1", "true", "yes", "on", "да"}
+
 
 OPEN_STATUSES = ("new", "ai_scored", "offer_generated", "approved")
 TRACKED_SOURCES = ("hh.ru", "telegram", "habr_freelance", "fl_ru", "kwork", "avito", "direct")
@@ -554,6 +564,27 @@ def delete_knowledge_base_item(item_id: int, db: Session = Depends(get_db)):
 def get_settings(db: Session = Depends(get_db)):
     settings = db.query(SystemSetting).all()
     result = {s.key: s.value for s in settings}
+
+    # OpenRouter defaults
+    result.setdefault("OPENROUTER_DEFAULT_MODEL", os.getenv("OPENROUTER_DEFAULT_MODEL", "anthropic/claude-3.5-sonnet"))
+    result.setdefault("OPENROUTER_SCORING_MODEL", os.getenv("OPENROUTER_SCORING_MODEL", "deepseek/deepseek-chat"))
+    result.setdefault("OPENROUTER_TEMPERATURE", "0.7")
+
+    # HH Account Bot defaults (disabled by default as requested by user)
+    result.setdefault("HH_ACCOUNT_SYNC_ENABLED", "false")
+    result.setdefault("HH_ACCOUNT_SYNC_INTERVAL_MIN", "60")
+    result.setdefault("HH_ACCOUNT_MAX_CHATS_TO_OPEN", "12")
+    result.setdefault("HH_ACCOUNT_BASE_URL", "https://hh.ru")
+    result.setdefault("HH_ACCOUNT_OPEN_CHAT_DETAILS", "true")
+    result.setdefault("HH_ACCOUNT_ALERT_ON_REPLY", "true")
+
+    # Business targets & safety defaults
+    result.setdefault("TARGET_CLIENTS_COUNT", "6")
+    result.setdefault("TARGET_MONTHLY_RATE", "85000")
+    result.setdefault("MIN_MATCH_SCORE_THRESHOLD", "70")
+    result.setdefault("HH_AUTO_APPLY_ENABLED", "false")
+    result.setdefault("TG_AUTO_NOTIFY_ENABLED", "true")
+
     # Add env flags to indicate whether keys are configured
     result["OPENROUTER_CONFIGURED"] = bool(os.getenv("OPENROUTER_API_KEY") and "your_openrouter" not in os.getenv("OPENROUTER_API_KEY"))
     result["HH_CONFIGURED"] = bool(os.getenv("HH_ACCESS_TOKEN"))
@@ -572,8 +603,57 @@ def update_settings(settings_dict: dict, db: Session = Depends(get_db)):
             item.value = str(value)
         else:
             db.add(SystemSetting(key=key, value=str(value)))
+
+    # Keep account_platforms in sync with HH account settings
+    if "HH_ACCOUNT_SYNC_ENABLED" in settings_dict:
+        is_en = str(settings_dict["HH_ACCOUNT_SYNC_ENABLED"]).lower() in {"1", "true", "yes"}
+        plat = db.query(AccountPlatform).filter(AccountPlatform.platform == "hh.ru").first()
+        if plat:
+            plat.enabled = is_en
+    if "HH_ACCOUNT_SYNC_INTERVAL_MIN" in settings_dict:
+        try:
+            mins = int(settings_dict["HH_ACCOUNT_SYNC_INTERVAL_MIN"])
+            plat = db.query(AccountPlatform).filter(AccountPlatform.platform == "hh.ru").first()
+            if plat:
+                plat.interval_minutes = mins
+        except Exception:
+            pass
+
     db.commit()
     return {"status": "success", "updated": list(settings_dict.keys())}
+
+
+@app.post("/api/settings/test-openrouter")
+async def test_openrouter_connection(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    model = payload.get("model") or _setting_str(db, "OPENROUTER_DEFAULT_MODEL", "anthropic/claude-3.5-sonnet")
+    api_key = os.getenv("OPENROUTER_API_KEY", "")
+    if not api_key or "your_openrouter_api_key" in api_key:
+        return {
+            "status": "error",
+            "message": "Ключ OPENROUTER_API_KEY не задан в .env. Добавьте его для работы нейросетей."
+        }
+    import time
+    t0 = time.time()
+    try:
+        reply = await ai_service.call_openrouter(
+            messages=[{"role": "user", "content": "Ping test. Respond with only 'PONG'"}],
+            model=model,
+            temperature=0.1
+        )
+        latency = round((time.time() - t0) * 1000)
+        return {
+            "status": "success",
+            "model": model,
+            "latency_ms": latency,
+            "response": reply,
+            "message": f"Связь с OpenRouter успешна! Модель {model} ответила за {latency} мс."
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "model": model,
+            "message": f"Ошибка запроса к OpenRouter ({model}): {str(e)}"
+        }
 
 
 # --- HeadHunter Scraper Background Tasks & Status ---
@@ -897,6 +977,13 @@ async def trigger_account_sync(platform: str, background_tasks: BackgroundTasks,
 
     if platform != "hh.ru":
         raise HTTPException(status_code=400, detail="Пока поддерживается только hh.ru — остальные площадки по порядку")
+
+    is_enabled = _setting_bool(db, "HH_ACCOUNT_SYNC_ENABLED", False)
+    if not is_enabled:
+        return {
+            "status": "disabled",
+            "message": "Мониторинг hh-аккаунта временно отключен в технических настройках. Включите активность бота, чтобы запустить сбор.",
+        }
 
     async def run_hh_account_task():
         state["is_running"] = True

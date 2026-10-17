@@ -160,6 +160,9 @@ export interface SystemSettings {
   HH_ACCOUNT_OPEN_CHAT_DETAILS?: string;
   HH_ACCOUNT_MAX_CHATS_TO_OPEN?: string;
   HH_ACCOUNT_ALERT_ON_REPLY?: string;
+  OPENROUTER_DEFAULT_MODEL?: string;
+  OPENROUTER_SCORING_MODEL?: string;
+  OPENROUTER_TEMPERATURE?: string;
   [key: string]: unknown;
 }
 

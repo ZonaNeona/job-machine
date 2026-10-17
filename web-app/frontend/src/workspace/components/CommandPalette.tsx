@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight, BookOpen, Columns3, Inbox, PenLine, Plug, Plus, Search, Sunrise, Zap,
+  ArrowRight, BookOpen, Columns3, Inbox, KeyRound, PenLine, Plug, Plus, Search, Settings, Sunrise, Zap,
 } from 'lucide-react';
 import { Lead } from '../../types';
 import { SOURCE_MAP, formatSalary } from '../lib';
@@ -49,7 +49,9 @@ export function CommandPalette({
       { id: 'stream', group: 'Перейти', label: 'Поток лидов', icon: <Inbox size={14} />, run: () => onNavigate('stream') },
       { id: 'funnel', group: 'Перейти', label: 'Воронка', icon: <Columns3 size={14} />, run: () => onNavigate('funnel') },
       { id: 'knowledge', group: 'Перейти', label: 'База знаний', icon: <BookOpen size={14} />, run: () => onNavigate('knowledge') },
-      { id: 'settings', group: 'Перейти', label: 'Источники и настройки', icon: <Plug size={14} />, run: () => onNavigate('settings') },
+      { id: 'accounts', group: 'Перейти', label: 'Аккаунты площадок', icon: <KeyRound size={14} />, run: () => onNavigate('accounts') },
+      { id: 'settings', group: 'Перейти', label: 'Источники сбора', icon: <Plug size={14} />, run: () => onNavigate('settings') },
+      { id: 'tech', group: 'Перейти', label: 'Технические настройки', sub: 'Активность бота, OpenRouter, Cron', icon: <Settings size={14} />, run: () => onNavigate('tech') },
     ];
 
     const normalized = query.trim().toLowerCase();
