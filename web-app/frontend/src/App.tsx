@@ -175,7 +175,7 @@ export default function App() {
     try {
       const result = await api.generateOffer(selectedFresh.id, undefined, offerInstructions || undefined);
       setOfferDraft(result.offer);
-      updateLeadLocal(selectedFresh.id, { generated_offer: result.offer, status: 'offer_generated' });
+      const nextStatus = ['new', 'ai_scored'].includes(selectedFresh.status) ? 'offer_generated' : selectedFresh.status;\n      updateLeadLocal(selectedFresh.id, { generated_offer: result.offer, status: nextStatus });
       setToast('Черновик оффера подготовлен. Проверь факты и отредактируй текст перед отправкой.');
       void api.getStats().then(setStats).catch(() => {});
     } catch (error) {
@@ -224,7 +224,7 @@ export default function App() {
       if (source === 'tg') await api.triggerTGScraper();
       if (source === 'freelance') await api.triggerFreelanceScraper();
       if (source === 'avito') await api.triggerAvitoScraper();
-      setToast('Сбор запущен. Обновлю поток после завершения ближайшего цикла.');
+      setToast('Сбор запущен. Поток обновится через несколько секунд; статус сборщика можно проверить в настройках.');
       window.setTimeout(() => { void loadData(true); setBusy(false); }, 5000);
     } catch (error) {
       console.error(error);
