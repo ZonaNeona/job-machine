@@ -367,9 +367,9 @@ export default function App() {
             {(tab === 'inbox' || tab === 'funnel' || tab === 'studio') && (
               <>
                 <section className="metric-grid">
-                  <MetricCard label="Новые возможности" value={stats?.new_leads ?? leads.filter((lead) => lead.status === 'new').length} hint="Входящие лиды" icon={Inbox} accent="blue" />
-                  <MetricCard label="Офферы готовы" value={stats?.offers_ready ?? offerCount} hint="Можно проверить и отправить" icon={FileText} accent="violet" />
-                  <MetricCard label="Активные диалоги" value={stats?.active_deals ?? attentionCount} hint="Ответы и переговоры" icon={MessageCircle} accent="green" />
+                  <MetricCard label="Новые возможности" value={newCount} hint="Входящие лиды" icon={Inbox} accent="blue" />
+                  <MetricCard label="Офферы готовы" value={offerCount} hint="Можно проверить и отправить" icon={FileText} accent="violet" />
+                  <MetricCard label="Активные диалоги" value={attentionCount} hint="Ответы и переговоры" icon={MessageCircle} accent="green" />
                   <MetricCard label="Конверсия в ответ" value={stats ? `${Math.round(stats.conversion_rate)}%` : '—'} hint={stats ? `${stats.sent_outreach} зафиксировано как отправленные` : 'Появится после загрузки статистики'} icon={TrendingUp} accent="amber" />
                 </section>
 
